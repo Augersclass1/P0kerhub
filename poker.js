@@ -16,7 +16,9 @@ function log(msg) {
   el.innerHTML += msg + "<br>";
   el.scrollTop = el.scrollHeight;
 }
-
+function setValue(val) {
+  document.getElementById("raiseAmount").value = val;
+}
 /* ---------------- CARD RENDER ---------------- */
 
 function renderCard(c) {
