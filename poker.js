@@ -22,7 +22,12 @@ function renderCard(c) {
 }
 
 /* ---------------- GAME SETUP ---------------- */
-
+function runAITurns() {
+  for (let i = 1; i < players.length; i++) {
+    aiTurn(players[i]);
+    updateUI();
+  }
+}
 function createPlayers() {
   players = [];
 
@@ -116,7 +121,8 @@ function playerAction(action) {
 
     log("You raise to " + newBet);
   }
-
+  updateUI();
+  runAITurns();
   updateUI();
 }
 
