@@ -184,41 +184,77 @@ function playerAction(action) {
 }
 
 /* ---------------- AI ---------------- */
-
 function aiTurn(p) {
   if (p.folded) return;
 
   let r = Math.random();
 
-  if (r < 0.25) {
+  // --- FOLD ---
+  if (r < 0.2) {
     p.folded = true;
     log(p.name + " folds.");
+    return;
   }
 
-  else if (r < 0.75) {
+  // --- CALL / CHECK ---
+  if (r < 0.7) {
     let diff = currentBet - p.bet;
-    if (diff > p.money) diff = p.money;
 
-    p.money -= diff;
-    p.bet += diff;
-    pot += diff;
+    if (diff > 0) {
+      if (diff > p.money) diff = p.money;
 
-    log(p.name + " calls.");
+      p.money -= diff;
+      p.bet += diff;
+      pot += diff;
+
+      log(p.name + " calls.");
+    } else {
+      log(p.name + " checks.");
+    }
+
+    return;
   }
 
-  else {
-    let raise = currentBet + 20;
-    let diff = raise - p.bet;
+  // --- RAISE (FIXED LOGIC) ---
+  let minRaise = 20;
+  let maxRaise = 100;
 
-    if (diff > p.money) diff = p.money;
+  // random raise size
+  let raiseSize = Math.floor(Math.random() * (maxRaise - minRaise)) + minRaise;
 
-    p.money -= diff;
-    p.bet = raise;
-    currentBet = raise;
-    pot += diff;
+  // target total bet (NOT increment)
+  let targetBet = currentBet + raiseSize;
 
-    log(p.name + " raises.");
+  // calculate needed chips
+  let diff = targetBet - p.bet;
+
+  // if AI can't afford full raise → treat as call/all-in
+  if (diff > p.money) {
+    diff = p.money;
+    targetBet = p.bet + diff;
+
+    // if still not beating current bet → it's a call
+    if (targetBet <= currentBet) {
+      let callDiff = currentBet - p.bet;
+
+      if (callDiff > p.money) callDiff = p.money;
+
+      p.money -= callDiff;
+      p.bet += callDiff;
+      pot += callDiff;
+
+      log(p.name + " calls (low money).");
+      return;
+    }
   }
+
+  // apply raise
+  p.money -= diff;
+  p.bet += diff;
+  currentBet = p.bet;
+  pot += diff;
+
+  log(p.name + " raises to " + currentBet);
 }
 
 /* ---------------- ROUND SYSTEM (FIX) ---------------- */
