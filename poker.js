@@ -31,6 +31,20 @@ function updateUI() {
     community.map(c => c.value + c.suit).join(" ");
 }
 
+function handStrength(cards, community) {
+  let all = [...cards, ...community];
+
+  if (community.length < 3) {
+    // pre-flop heuristic: high cards matter
+    let v = cards.map(c => value(c.value));
+    return (Math.max(...v) + Math.min(...v)) / 28;
+  }
+
+  let score = evaluateHand(all)[0]; // 0–8 from your pro evaluator
+
+  // normalize to 0–1
+  return score / 8;
+}
 function createPlayers() {
   players = [];
 
