@@ -4,7 +4,11 @@ let community = [];
 
 let pot = 0;
 let currentBet = 0;
-let currentPlayer = 0;
+
+let turnIndex = 0;
+let handActive = false;
+
+/* ---------------- LOG ---------------- */
 
 function log(msg) {
   let el = document.getElementById("log");
@@ -12,7 +16,7 @@ function log(msg) {
   el.scrollTop = el.scrollHeight;
 }
 
-/* ---------------- CARD RENDERING ---------------- */
+/* ---------------- CARDS ---------------- */
 
 function renderCard(c) {
   const red = ["♥", "♦"];
@@ -21,13 +25,8 @@ function renderCard(c) {
           </div>`;
 }
 
-/* ---------------- GAME SETUP ---------------- */
-function runAITurns() {
-  for (let i = 1; i < players.length; i++) {
-    aiTurn(players[i]);
-    updateUI();
-  }
-}
+/* ---------------- SETUP ---------------- */
+
 function createPlayers() {
   players = [];
 
@@ -51,7 +50,7 @@ function createPlayers() {
 }
 
 function createDeck() {
-  const suits = ["♠", "♥", "♦", "♣"];
+  const suits = ["♠","♥","♦","♣"];
   const values = [2,3,4,5,6,7,8,9,10,"J","Q","K","A"];
 
   deck = [];
@@ -74,9 +73,10 @@ function startHand() {
 
   createDeck();
 
+  community = [];
   pot = 0;
   currentBet = 0;
-  community = [];
+  handActive = true;
 
   for (let p of players) {
     p.hand = [draw(), draw()];
@@ -84,13 +84,54 @@ function startHand() {
     p.folded = false;
   }
 
+  turnIndex = 0;
+
   log("New hand started.");
+  log("Your turn.");
   updateUI();
 }
 
-/* ---------------- ACTIONS ---------------- */
+/* ---------------- TURN SYSTEM ---------------- */
+
+function nextTurn() {
+  if (!handActive) return;
+
+  let alive = players.filter(p => !p.folded);
+
+  if (alive.length === 1) {
+    alive[0].money += pot;
+    log(alive[0].name + " wins (everyone folded).");
+    handActive = false;
+    return;
+  }
+
+  do {
+    turnIndex = (turnIndex + 1) % players.length;
+  } while (players[turnIndex].folded);
+
+  if (turnIndex === 0) {
+    log("Your turn.");
+    updateUI();
+    return;
+  }
+
+  setTimeout(() => {
+    aiTurn(players[turnIndex]);
+    updateUI();
+    nextTurn();
+  }, 500);
+}
+
+/* ---------------- PLAYER ACTIONS ---------------- */
 
 function playerAction(action) {
+  if (!handActive) return;
+
+  if (turnIndex !== 0) {
+    log("Not your turn.");
+    return;
+  }
+
   let p = players[0];
 
   if (action === "fold") {
@@ -109,10 +150,18 @@ function playerAction(action) {
   if (action === "raise") {
     let amount = parseInt(document.getElementById("raiseAmount").value) || 0;
 
-    if (amount <= 0) return;
+    if (amount <= 0) {
+      log("Invalid raise.");
+      return;
+    }
 
     let newBet = currentBet + amount;
     let diff = newBet - p.bet;
+
+    if (diff > p.money) {
+      log("Not enough money.");
+      return;
+    }
 
     p.money -= diff;
     p.bet = newBet;
@@ -121,12 +170,12 @@ function playerAction(action) {
 
     log("You raise to " + newBet);
   }
+
   updateUI();
-  runAITurns();
-  updateUI();
+  nextTurn();
 }
 
-/* ---------------- AI (simple but functional) ---------------- */
+/* ---------------- AI ---------------- */
 
 function aiTurn(p) {
   if (p.folded) return;
@@ -136,19 +185,31 @@ function aiTurn(p) {
   if (r < 0.25) {
     p.folded = true;
     log(p.name + " folds.");
-  } else if (r < 0.75) {
+  }
+
+  else if (r < 0.75) {
     let diff = currentBet - p.bet;
+
+    if (diff > p.money) diff = p.money;
+
     p.money -= diff;
     p.bet += diff;
     pot += diff;
+
     log(p.name + " calls.");
-  } else {
+  }
+
+  else {
     let raise = currentBet + 20;
     let diff = raise - p.bet;
+
+    if (diff > p.money) diff = p.money;
+
     p.money -= diff;
     p.bet = raise;
     currentBet = raise;
     pot += diff;
+
     log(p.name + " raises.");
   }
 }
@@ -164,19 +225,22 @@ function updateUI() {
   document.getElementById("playerCards").innerHTML =
     players[0].hand.map(renderCard).join("");
 
-  // community cards
+  // community
   document.getElementById("communityCards").innerHTML =
     community.map(renderCard).join("");
 
-  // AI display (card backs)
+  // AI display
   for (let i = 1; i <= 3; i++) {
     let el = document.getElementById("p" + i);
+
     el.innerHTML =
       `<b>${players[i].name}</b><br>` +
       `<div class="card-back"></div><div class="card-back"></div><br>` +
       `Money: $${players[i].money}`;
   }
 }
+
+/* ---------------- INIT ---------------- */
 
 createPlayers();
 updateUI();
