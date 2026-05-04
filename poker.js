@@ -41,9 +41,11 @@ function handStrength(cards, community) {
   }
 
   let score = evaluateHand(all)[0]; // 0–8 from your pro evaluator
-
+  if (Math.random()<0.5) {
   // normalize to 0–1
-  return score / 8;
+    return (score / 8)-Math.random();
+  }
+  return (score / 8)+Math.random();
 }
 function createPlayers() {
   players = [];
@@ -218,7 +220,6 @@ function aiTurn(p) {
     log(p.name + " raises.");
     return;
   }
-
   // strong hand → big raise
   let raise = currentBet + Math.floor(p.money * 0.4);
   let diff = raise - p.bet;
