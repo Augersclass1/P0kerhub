@@ -124,14 +124,33 @@ function playerAction(action) {
   }
 
   if (action === "raise") {
-    let raise = currentBet + 50;
-    let diff = raise - p.bet;
-    p.money -= diff;
-    p.bet = raise;
-    currentBet = raise;
-    pot += diff;
-    log("You raise.");
+  let amount = parseInt(document.getElementById("raiseAmount").value);
+
+  // basic validation
+  if (isNaN(amount) || amount <= 0) {
+    log("Invalid raise amount.");
+    return;
   }
+
+  // poker rule: raise must exceed current bet
+  let minRaiseTo = currentBet + amount;
+
+  let diff = minRaiseTo - p.bet;
+
+  // check if player can afford it
+  if (diff > p.money) {
+    log("Not enough money to raise that much.");
+    return;
+  }
+
+  // apply raise
+  p.money -= diff;
+  p.bet = minRaiseTo;
+  currentBet = minRaiseTo;
+  pot += diff;
+
+  log("You raise to $" + minRaiseTo);
+}
 
   if (action === "check") {
     log("You check.");
