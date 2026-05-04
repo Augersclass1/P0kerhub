@@ -176,26 +176,61 @@ function playerAction(action) {
 function aiTurn(p) {
   if (p.folded) return;
 
-  let r = Math.random();
+  let strength = handStrength(p.hand, community);
 
-  if (r < 0.2) {
+  let toCall = currentBet - p.bet;
+
+  // pot pressure factor (how expensive call is)
+  let potPressure = toCall / (p.money + 1);
+
+  let aggression = strength - potPressure;
+
+  // DECISION LOGIC
+  if (aggression < 0.15) {
     p.folded = true;
-    log(p.name + " folds.");
-  } else if (r < 0.7) {
-    let diff = currentBet - p.bet;
-    p.money -= diff;
-    p.bet += diff;
-    pot += diff;
-    log(p.name + " calls.");
-  } else {
-    let raise = currentBet + 50;
-    let diff = raise - p.bet;
-    p.money -= diff;
-    p.bet = raise;
-    currentBet = raise;
-    pot += diff;
-    log(p.name + " raises.");
+    log(p.name + " folds (weak hand).");
+    return;
   }
+
+  if (aggression < 0.4) {
+    // call / check
+    let pay = Math.min(toCall, p.money);
+    p.money -= pay;
+    p.bet += pay;
+    pot += pay;
+
+    log(p.name + " calls.");
+    return;
+  }
+
+  if (aggression < 0.75) {
+    // small raise
+    let raise = currentBet + Math.floor(p.money * 0.15);
+    let diff = raise - p.bet;
+
+    if (diff > p.money) diff = p.money;
+
+    p.money -= diff;
+    p.bet = currentBet + diff;
+    currentBet = p.bet;
+    pot += diff;
+
+    log(p.name + " raises.");
+    return;
+  }
+
+  // strong hand → big raise
+  let raise = currentBet + Math.floor(p.money * 0.4);
+  let diff = raise - p.bet;
+
+  if (diff > p.money) diff = p.money;
+
+  p.money -= diff;
+  p.bet = currentBet + diff;
+  currentBet = p.bet;
+  pot += diff;
+
+  log(p.name + " makes a strong raise!");
 }
 
 function nextTurn() {
