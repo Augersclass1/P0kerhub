@@ -7,6 +7,7 @@ let currentBet = 0;
 
 let turnIndex = 0;
 let handActive = false;
+let stage = 0; // 0 preflop, 1 flop, 2 turn, 3 river
 
 /* ---------------- LOG ---------------- */
 
@@ -16,7 +17,7 @@ function log(msg) {
   el.scrollTop = el.scrollHeight;
 }
 
-/* ---------------- CARDS ---------------- */
+/* ---------------- CARD RENDER ---------------- */
 
 function renderCard(c) {
   const red = ["♥", "♦"];
@@ -76,6 +77,7 @@ function startHand() {
   community = [];
   pot = 0;
   currentBet = 0;
+  stage = 0;
   handActive = true;
 
   for (let p of players) {
@@ -96,18 +98,21 @@ function startHand() {
 function nextTurn() {
   if (!handActive) return;
 
-  let alive = players.filter(p => !p.folded);
+  let active = players.filter(p => !p.folded);
 
-  if (alive.length === 1) {
-    alive[0].money += pot;
-    log(alive[0].name + " wins (everyone folded).");
+  if (active.length === 1) {
+    active[0].money += pot;
+    log(active[0].name + " wins (everyone folded).");
     handActive = false;
     return;
   }
 
-  do {
-    turnIndex = (turnIndex + 1) % players.length;
-  } while (players[turnIndex].folded);
+  turnIndex = (turnIndex + 1) % players.length;
+
+  if (players[turnIndex].folded) {
+    nextTurn();
+    return;
+  }
 
   if (turnIndex === 0) {
     log("Your turn.");
@@ -118,6 +123,7 @@ function nextTurn() {
   setTimeout(() => {
     aiTurn(players[turnIndex]);
     updateUI();
+    checkRoundEnd();   // IMPORTANT
     nextTurn();
   }, 500);
 }
@@ -126,7 +132,6 @@ function nextTurn() {
 
 function playerAction(action) {
   if (!handActive) return;
-
   if (turnIndex !== 0) {
     log("Not your turn.");
     return;
@@ -172,6 +177,7 @@ function playerAction(action) {
   }
 
   updateUI();
+  checkRoundEnd(); // IMPORTANT
   nextTurn();
 }
 
@@ -189,7 +195,6 @@ function aiTurn(p) {
 
   else if (r < 0.75) {
     let diff = currentBet - p.bet;
-
     if (diff > p.money) diff = p.money;
 
     p.money -= diff;
@@ -214,6 +219,106 @@ function aiTurn(p) {
   }
 }
 
+/* ---------------- ROUND SYSTEM (FIX) ---------------- */
+
+function checkRoundEnd() {
+  let active = players.filter(p => !p.folded);
+
+  if (active.length <= 1) return;
+
+  let allEqual = active.every(p => p.bet === currentBet);
+
+  if (!allEqual) return;
+
+  // reset bets
+  for (let p of players) {
+    p.bet = 0;
+  }
+
+  currentBet = 0;
+  stage++;
+
+  if (stage === 1) {
+    community.push(draw(), draw(), draw());
+    log("Flop dealt.");
+  }
+
+  else if (stage === 2) {
+    community.push(draw());
+    log("Turn dealt.");
+  }
+
+  else if (stage === 3) {
+    community.push(draw());
+    log("River dealt.");
+  }
+
+  else {
+    showdown();
+    handActive = false;
+  }
+}
+
+/* ---------------- SHOWDOWN ---------------- */
+
+function value(v) {
+  if (v==="J") return 11;
+  if (v==="Q") return 12;
+  if (v==="K") return 13;
+  if (v==="A") return 14;
+  return v;
+}
+
+function evaluate(cards) {
+  let vals = cards.map(c=>value(c.value)).sort((a,b)=>b-a);
+  let counts = {};
+
+  vals.forEach(v => counts[v] = (counts[v]||0)+1);
+
+  let groups = Object.entries(counts)
+    .map(([v,c]) => ({v:parseInt(v), c}))
+    .sort((a,b)=>b.c - a.c || b.v - a.v);
+
+  if (groups[0].c === 4) return 7;
+  if (groups[0].c === 3 && groups[1]?.c === 2) return 6;
+  if (groups[0].c === 3) return 3;
+  if (groups[0].c === 2 && groups[1]?.c === 2) return 2;
+  if (groups[0].c === 2) return 1;
+
+  return 0;
+}
+
+function showdown() {
+  log("Showdown!");
+
+  let best = -1;
+  let winners = [];
+
+  for (let p of players) {
+    if (p.folded) continue;
+
+    let score = evaluate([...p.hand, ...community]);
+
+    log(p.name + " score: " + score);
+
+    if (score > best) {
+      best = score;
+      winners = [p];
+    } else if (score === best) {
+      winners.push(p);
+    }
+  }
+
+  let split = pot / winners.length;
+
+  for (let w of winners) {
+    w.money += split;
+  }
+
+  log("Winner(s): " + winners.map(w=>w.name).join(", "));
+  pot = 0;
+}
+
 /* ---------------- UI ---------------- */
 
 function updateUI() {
@@ -221,15 +326,12 @@ function updateUI() {
   document.getElementById("currentBet").textContent = currentBet;
   document.getElementById("money").textContent = players[0]?.money || 0;
 
-  // player cards
   document.getElementById("playerCards").innerHTML =
     players[0].hand.map(renderCard).join("");
 
-  // community
   document.getElementById("communityCards").innerHTML =
     community.map(renderCard).join("");
 
-  // AI display
   for (let i = 1; i <= 3; i++) {
     let el = document.getElementById("p" + i);
 
