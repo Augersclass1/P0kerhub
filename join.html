@@ -1,21 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Join Poker Game</title>
+  <title>Join Poker</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #1b1b1b;
+      color: white;
+      text-align: center;
+    }
+
+    button {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 8px;
+    }
+  </style>
 </head>
+
 <body>
   <h1>Join Game</h1>
 
-  <h3>Paste host offer:</h3>
-  <textarea id="offerBox" style="width:100%;height:150px;"></textarea>
+  <textarea id="offerBox" style="width:90%;height:120px;"></textarea>
   <button onclick="createAnswer()">Generate Answer</button>
 
-  <h3>Send this back to host:</h3>
-  <textarea id="answerBox" style="width:100%;height:150px;"></textarea>
+  <textarea id="answerBox" style="width:90%;height:120px;"></textarea>
 
   <hr>
 
-  <button onclick="testBet()">Test Bet (Client)</button>
+  <button onclick="playerAction({type:'check'})">Check</button>
+  <button onclick="playerAction({type:'call'})">Call</button>
+  <button onclick="playerAction({type:'bet', amount:50})">Bet 50</button>
+  <button onclick="playerAction({type:'fold'})">Fold</button>
 
   <script src="multiplayer.js"></script>
 </body>
