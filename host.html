@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Poker Host</title>
+</head>
+<body>
+  <h1>Host (Player 0)</h1>
+
+  <button onclick="createOffer()">Create Room</button>
+
+  <h3>Send this to players:</h3>
+  <textarea id="offerBox" style="width:100%;height:150px;"></textarea>
+
+  <h3>Paste answer from player:</h3>
+  <textarea id="answerBox" style="width:100%;height:150px;"></textarea>
+  <button onclick="acceptAnswer()">Connect</button>
+
+  <hr>
+
+  <button onclick="testBet()">Test Bet (Host)</button>
+
+  <script src="multiplayer.js"></script>
+</body>
+</html>
