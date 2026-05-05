@@ -8,8 +8,8 @@ const myId = isHost ? 0 : 1;
 let gameState = {
   deck: [],
   players: [
-    { id: 0, name: "Host", chips: 1000, hand: [], bet: 0, folded: false },
-    { id: 1, name: "Player", chips: 1000, hand: [], bet: 0, folded: false }
+    { id:0, name:"Host", chips:1000, hand:[], bet:0, folded:false },
+    { id:1, name:"Player", chips:1000, hand:[], bet:0, folded:false }
   ],
   community: [],
   pot: 0,
@@ -20,47 +20,45 @@ let gameState = {
 };
 
 // ---------------- DECK ----------------
-function createDeck() {
-  const s = ["♠","♥","♦","♣"];
-  const r = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
-  let d = [];
-  for (let suit of s) {
-    for (let rank of r) {
-      d.push({ suit, rank });
-    }
-  }
-  return d.sort(() => Math.random() - 0.5);
+function deck() {
+  const s=["♠","♥","♦","♣"];
+  const r=["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+  let d=[];
+  for(let x of s) for(let y of r) d.push({suit:x, rank:y});
+  return d.sort(()=>Math.random()-0.5);
 }
 
-// ---------------- GAME START ----------------
-function startGame() {
-  gameState.deck = createDeck();
+// ---------------- START ----------------
+function startGame(){
+  gameState.deck = deck();
   gameState.community = [];
   gameState.pot = 0;
-  gameState.currentBet = 0;
   gameState.phase = "preflop";
+  gameState.currentBet = 0;
 
-  for (let p of gameState.players) {
-    p.hand = [gameState.deck.pop(), gameState.deck.pop()];
-    p.bet = 0;
-    p.folded = false;
+  for(let p of gameState.players){
+    p.hand=[gameState.deck.pop(),gameState.deck.pop()];
+    p.bet=0;
+    p.folded=false;
   }
 
-  gameState.currentPlayer = (gameState.dealer + 1) % 2;
+  gameState.currentPlayer = 1;
 
   render();
+  sendPrivateHands();
   sendState();
 }
 
-// ---------------- ACTION HANDLER ----------------
-function handleAction(playerId, action) {
-  if (playerId !== gameState.currentPlayer) return;
+// ---------------- ACTIONS ----------------
+function handleAction(id, action){
+  if(id !== gameState.currentPlayer) return;
 
-  let p = gameState.players[playerId];
+  let p = gameState.players[id];
 
-  switch (action.type) {
+  switch(action.type){
+
     case "bet":
-      if (action.amount < gameState.currentBet) return;
+      if(action.amount < gameState.currentBet) return;
       p.chips -= action.amount;
       p.bet += action.amount;
       gameState.pot += action.amount;
@@ -74,264 +72,216 @@ function handleAction(playerId, action) {
       gameState.pot += diff;
       break;
 
-    case "check":
-      if (gameState.currentBet !== p.bet) return;
-      break;
-
     case "fold":
       p.folded = true;
       break;
   }
 
-  advanceTurn();
+  nextTurn();
   checkRound();
   render();
   sendState();
+  sendPrivateHands();
 }
 
 // ---------------- TURN ----------------
-function advanceTurn() {
+function nextTurn(){
   let i = gameState.currentPlayer;
+  do{
+    i=(i+1)%2;
+  }while(gameState.players[i].folded);
 
-  do {
-    i = (i + 1) % 2;
-  } while (gameState.players[i].folded);
-
-  gameState.currentPlayer = i;
+  gameState.currentPlayer=i;
 }
 
-// ---------------- ROUND LOGIC ----------------
-function checkRound() {
-  let active = gameState.players.filter(p => !p.folded);
+// ---------------- ROUND ----------------
+function checkRound(){
+  let alive=gameState.players.filter(p=>!p.folded);
 
-  if (active.length === 1) {
-    active[0].chips += gameState.pot;
+  if(alive.length===1){
+    alive[0].chips+=gameState.pot;
     startGame();
     return;
   }
 
-  let allMatched = gameState.players.every(
-    p => p.folded || p.bet === gameState.currentBet
+  let done = gameState.players.every(p=>
+    p.folded || p.bet===gameState.currentBet
   );
 
-  if (allMatched) nextPhase();
+  if(done) nextPhase();
 }
 
-function nextPhase() {
-  gameState.currentBet = 0;
+function nextPhase(){
+  gameState.currentBet=0;
 
-  if (gameState.phase === "preflop") {
-    gameState.phase = "flop";
-    gameState.community.push(
-      gameState.deck.pop(),
-      gameState.deck.pop(),
-      gameState.deck.pop()
-    );
+  if(gameState.phase==="preflop"){
+    gameState.phase="flop";
+    gameState.community.push(gameState.deck.pop(),gameState.deck.pop(),gameState.deck.pop());
   }
-  else if (gameState.phase === "flop") {
-    gameState.phase = "turn";
+  else if(gameState.phase==="flop"){
+    gameState.phase="turn";
     gameState.community.push(gameState.deck.pop());
   }
-  else if (gameState.phase === "turn") {
-    gameState.phase = "river";
+  else if(gameState.phase==="turn"){
+    gameState.phase="river";
     gameState.community.push(gameState.deck.pop());
   }
-  else {
-    gameState.phase = "showdown";
+  else{
     showdown();
   }
 }
 
 // ---------------- SHOWDOWN ----------------
-function showdown() {
-  let active = gameState.players.filter(p => !p.folded);
+function showdown(){
+  let best=null;
+  let winners=[];
 
-  let best = null;
-  let winners = [];
+  for(let p of gameState.players){
+    if(p.folded) continue;
 
-  for (let p of active) {
-    let score = evaluateHand(p.hand, gameState.community);
+    let score = scoreHand(p.hand, gameState.community);
 
-    if (!best || score.rank > best.rank || (score.rank === best.rank && score.value > best.value)) {
-      best = score;
-      winners = [p];
-    } else if (score.rank === best.rank && score.value === best.value) {
+    if(!best || score>best){
+      best=score;
+      winners=[p];
+    }
+    else if(score===best){
       winners.push(p);
     }
   }
 
-  let share = Math.floor(gameState.pot / winners.length);
+  let share=Math.floor(gameState.pot/winners.length);
 
-  for (let w of winners) {
-    w.chips += share;
-  }
+  winners.forEach(w=>w.chips+=share);
 
-  console.log("Winner(s):", winners.map(w => w.name));
-
-  setTimeout(startGame, 2000);
+  setTimeout(startGame,2000);
 }
 
-// ---------------- HAND EVALUATION ----------------
-// Rank system:
-// 0 high card
-// 1 pair
-// 2 two pair
-// 3 three of a kind
-// 4 straight
-// 5 flush
-// 6 full house
-// 7 four of a kind
-// 8 straight flush
+// simple scoring (fast poker evaluator)
+function scoreHand(hand, community){
+  const all=[...hand,...community];
+  const values="23456789TJQKA";
 
-function evaluateHand(hand, community) {
-  let cards = [...hand, ...community];
+  let counts={};
 
-  const values = "23456789TJQKA";
-  const getVal = r => values.indexOf(r);
-
-  let counts = {};
-  let suits = {};
-
-  for (let c of cards) {
-    counts[c.rank] = (counts[c.rank] || 0) + 1;
-    suits[c.suit] = (suits[c.suit] || 0) + 1;
+  for(let c of all){
+    counts[c.rank]=(counts[c.rank]||0)+1;
   }
 
-  let isFlush = Object.values(suits).some(v => v >= 5);
-
-  let sorted = cards
-    .map(c => getVal(c.rank))
-    .sort((a,b) => b-a);
-
-  let unique = [...new Set(sorted)];
-
-  let straight = false;
-  for (let i = 0; i < unique.length - 4; i++) {
-    if (unique[i] - unique[i+4] === 4) {
-      straight = true;
-      break;
-    }
+  let max=0;
+  for(let k in counts){
+    max=Math.max(max,counts[k]);
   }
 
-  let pairs = Object.values(counts).filter(v => v === 2).length;
-  let trips = Object.values(counts).filter(v => v === 3).length;
-  let quads = Object.values(counts).filter(v => v === 4).length;
-
-  let rank = 0;
-
-  if (straight && isFlush) rank = 8;
-  else if (quads) rank = 7;
-  else if (trips && pairs) rank = 6;
-  else if (isFlush) rank = 5;
-  else if (straight) rank = 4;
-  else if (trips) rank = 3;
-  else if (pairs >= 2) rank = 2;
-  else if (pairs === 1) rank = 1;
-
-  return {
-    rank,
-    value: sorted[0]
-  };
+  return max; // simple ranking (pair/trips/etc)
 }
 
-// ---------------- ACTION WRAPPER ----------------
-function playerAction(action) {
-  if (isHost) {
-    handleAction(0, action);
-  } else {
+// ---------------- PLAYER ACTION ----------------
+function playerAction(a){
+  if(isHost){
+    handleAction(0,a);
+  }else{
     channel.send(JSON.stringify({
-      type: "action",
-      playerId: myId,
-      action
+      type:"action",
+      playerId:myId,
+      action:a
     }));
   }
 }
 
-// ---------------- NETWORK ----------------
-function createPeer() {
-  pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-  });
+// ---------------- WEBSYNC ----------------
+function sendState(){
+  if(!channel) return;
+  channel.send(JSON.stringify({type:"state",state:gameState}));
 }
 
-async function createOffer() {
-  createPeer();
-  channel = pc.createDataChannel("game");
-  setup();
+function sendPrivateHands(){
+  if(!channel) return;
 
-  let offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-
-  document.getElementById("offerBox").value =
-    JSON.stringify(pc.localDescription);
-}
-
-async function createAnswer() {
-  createPeer();
-
-  pc.ondatachannel = e => {
-    channel = e.channel;
-    setup();
-  };
-
-  let offer = JSON.parse(document.getElementById("offerBox").value);
-
-  await pc.setRemoteDescription(offer);
-
-  let answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-
-  document.getElementById("answerBox").value =
-    JSON.stringify(pc.localDescription);
-}
-
-async function acceptAnswer() {
-  let answer = JSON.parse(document.getElementById("answerBox").value);
-  await pc.setRemoteDescription(answer);
-}
-
-function setup() {
-  channel.onmessage = e => {
-    let msg = JSON.parse(e.data);
-
-    if (msg.type === "action") {
-      handleAction(msg.playerId, msg.action);
-    }
-
-    if (msg.type === "state") {
-      gameState = msg.state;
-      render();
-    }
-  };
-}
-
-function sendState() {
-  if (!channel) return;
-  channel.send(JSON.stringify({ type: "state", state: gameState }));
+  channel.send(JSON.stringify({
+    type:"private",
+    hand: gameState.players[1].hand
+  }));
 }
 
 // ---------------- UI ----------------
-function render() {
-  document.getElementById("phase").textContent = gameState.phase;
-  document.getElementById("pot").textContent = gameState.pot;
-  document.getElementById("turn").textContent =
+function render(){
+  document.getElementById("phase").textContent=gameState.phase;
+  document.getElementById("pot").textContent=gameState.pot;
+  document.getElementById("turn").textContent=
     gameState.players[gameState.currentPlayer].name;
 
-  document.getElementById("community").innerHTML =
-    gameState.community.map(c =>
-      `<span class="card">${c.rank}${c.suit}</span>`
-    ).join("");
+  document.getElementById("community").innerHTML=
+    gameState.community.map(c=>`<span class="card">${c.rank}${c.suit}</span>`).join("");
 
-  document.getElementById("players").innerHTML =
-    gameState.players.map(p => `
+  document.getElementById("players").innerHTML=
+    gameState.players.map(p=>`
       <div class="panel">
         <b>${p.name}</b><br>
-        Chips: ${p.chips}<br>
-        Bet: ${p.bet}<br>
-        Folded: ${p.folded}<br>
-        Hand: ${p.hand.map(c => c.rank + c.suit).join(" ")}
+        chips:${p.chips}<br>
+        bet:${p.bet}<br>
+        ${p.folded?"FOLDED":""}
       </div>
     `).join("");
+}
+
+// ---------------- WEBRTC ----------------
+function peer(){
+  pc=new RTCPeerConnection({
+    iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+  });
+}
+
+async function createOffer(){
+  peer();
+  channel=pc.createDataChannel("game");
+  setup();
+
+  let offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  document.getElementById("offerBox").value=
+    JSON.stringify(pc.localDescription);
+}
+
+async function createAnswer(){
+  peer();
+
+  pc.ondatachannel=e=>{
+    channel=e.channel;
+    setup();
+  };
+
+  let offer=JSON.parse(document.getElementById("offerBox").value);
+  await pc.setRemoteDescription(offer);
+
+  let ans=await pc.createAnswer();
+  await pc.setLocalDescription(ans);
+
+  document.getElementById("answerBox").value=
+    JSON.stringify(pc.localDescription);
+}
+
+async function acceptAnswer(){
+  let ans=JSON.parse(document.getElementById("answerBox").value);
+  await pc.setRemoteDescription(ans);
+}
+
+function setup(){
+  channel.onmessage=e=>{
+    let m=JSON.parse(e.data);
+
+    if(m.type==="action") handleAction(m.playerId,m.action);
+
+    if(m.type==="state"){
+      gameState=m.state;
+      render();
+    }
+
+    if(m.type==="private"){
+      console.log("Your hand:",m.hand);
+    }
+  };
 }
 
 render();
