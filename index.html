@@ -52,7 +52,9 @@
     <h1>Poker</h1>
 
     <button onclick="goSingle()">Singleplayer</button>
-    <button onclick="goMulti()">Multiplayer</button>
+    <button onclick="setlink()">Multiplayer host</button>
+    <button onclick="goMulti()">Multiplayer join</button>
+    
 </div>
 
 <script>
@@ -61,7 +63,10 @@ function goSingle() {
 }
 
 function goMulti() {
-    window.location.href = "multiplayer.html";
+    window.location.href = "join.html";
+}
+function setlink() {
+    window.location.href = "host.html";
 }
 </script>
 
