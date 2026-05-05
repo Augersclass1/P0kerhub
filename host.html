@@ -3,84 +3,68 @@
 <head>
   <title>Poker Host</title>
   <style>
-    body {
-      font-family: Arial;
-      background: #0b3d2e;
-      color: white;
-      text-align: center;
-    }
+    body { font-family: Arial; background:#0b3d2e; color:white; text-align:center; }
 
-    #table {
+    .table {
       width: 80%;
       margin: auto;
+      background: #145c43;
       padding: 20px;
       border-radius: 20px;
-      background: #145c43;
-      margin-top: 20px;
-    }
-
-    .card {
-      display: inline-block;
-      padding: 5px 8px;
-      margin: 2px;
-      background: white;
-      color: black;
-      border-radius: 5px;
     }
 
     button {
       padding: 10px;
       margin: 5px;
       border-radius: 8px;
-      border: none;
-      cursor: pointer;
     }
 
-    button:hover {
-      opacity: 0.8;
+    .card {
+      display:inline-block;
+      padding:6px;
+      background:white;
+      color:black;
+      margin:2px;
+      border-radius:5px;
     }
 
     .panel {
       background: rgba(255,255,255,0.1);
-      padding: 10px;
-      margin: 5px;
-      border-radius: 10px;
+      padding:10px;
+      margin:5px;
+      border-radius:10px;
     }
   </style>
 </head>
 
 <body>
-  <h1>Poker Host (Player 0)</h1>
+<h1>HOST (Player 0)</h1>
 
-  <button onclick="createOffer()">Create Game</button>
+<button onclick="createOffer()">Create Game</button>
 
-  <h3>Offer</h3>
-  <textarea id="offerBox" style="width:90%;height:120px;"></textarea>
+<textarea id="offerBox" style="width:90%;height:120px;"></textarea>
+<textarea id="answerBox" style="width:90%;height:120px;"></textarea>
+<button onclick="acceptAnswer()">Connect</button>
 
-  <h3>Answer</h3>
-  <textarea id="answerBox" style="width:90%;height:120px;"></textarea>
-  <button onclick="acceptAnswer()">Connect</button>
+<hr>
 
-  <div id="table">
-    <h2>Phase: <span id="phase"></span></h2>
-    <h3>Pot: $<span id="pot"></span></h3>
-    <h3>Turn: <span id="turn"></span></h3>
+<button onclick="startGame()">Start Game</button>
+<button onclick="playerAction({type:'bet', amount:50})">Bet 50</button>
+<button onclick="playerAction({type:'call'})">Call</button>
+<button onclick="playerAction({type:'fold'})">Fold</button>
 
-    <h3>Community Cards</h3>
-    <div id="community"></div>
+<div class="table">
+  <h2>Phase: <span id="phase"></span></h2>
+  <h3>Pot: $<span id="pot"></span></h3>
+  <h3>Turn: <span id="turn"></span></h3>
 
-    <h3>Players</h3>
-    <div id="players"></div>
+  <h3>Community</h3>
+  <div id="community"></div>
 
-    <hr>
+  <h3>Players</h3>
+  <div id="players"></div>
+</div>
 
-    <button onclick="playerAction({type:'check'})">Check</button>
-    <button onclick="playerAction({type:'call'})">Call</button>
-    <button onclick="playerAction({type:'bet', amount:50})">Bet 50</button>
-    <button onclick="playerAction({type:'fold'})">Fold</button>
-    <button onclick="startGame()">Start Game</button>
-  </div>
-
-  <script src="multiplayer.js"></script>
+<script src="multiplayer.js"></script>
 </body>
 </html>
