@@ -3,36 +3,30 @@
 <head>
   <title>Join Poker</title>
   <style>
-    body {
-      font-family: Arial;
-      background: #1b1b1b;
-      color: white;
-      text-align: center;
-    }
+    body { font-family: Arial; background:#1a1a1a; color:white; text-align:center; }
 
     button {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 8px;
+      padding:10px;
+      margin:5px;
     }
   </style>
 </head>
 
 <body>
-  <h1>Join Game</h1>
 
-  <textarea id="offerBox" style="width:90%;height:120px;"></textarea>
-  <button onclick="createAnswer()">Generate Answer</button>
+<h1>JOIN GAME</h1>
 
-  <textarea id="answerBox" style="width:90%;height:120px;"></textarea>
+<textarea id="offerBox" style="width:90%;height:120px;"></textarea>
+<button onclick="createAnswer()">Generate Answer</button>
 
-  <hr>
+<textarea id="answerBox" style="width:90%;height:120px;"></textarea>
 
-  <button onclick="playerAction({type:'check'})">Check</button>
-  <button onclick="playerAction({type:'call'})">Call</button>
-  <button onclick="playerAction({type:'bet', amount:50})">Bet 50</button>
-  <button onclick="playerAction({type:'fold'})">Fold</button>
+<hr>
 
-  <script src="multiplayer.js"></script>
+<button onclick="playerAction({type:'bet', amount:50})">Bet 50</button>
+<button onclick="playerAction({type:'call'})">Call</button>
+<button onclick="playerAction({type:'fold'})">Fold</button>
+
+<script src="multiplayer.js"></script>
 </body>
 </html>
