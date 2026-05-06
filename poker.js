@@ -9,6 +9,10 @@ let turnIndex = 0;
 let handActive = false;
 let stage = 0; // 0 preflop, 1 flop, 2 turn, 3 river
 
+
+function panicmode() {
+    window.location.href = "https://google.com";
+}
 /* ---------------- LOG ---------------- */
 
 function log(msg) {
