@@ -6,9 +6,7 @@ const values = [
 ];
 
 let deck = [];
-let showAI = true;
 
-const toggleAIBtn = document.getElementById("toggleAI");
 let player = {
   hand: [],
   money: 1000,
@@ -16,32 +14,19 @@ let player = {
 };
 
 let aiPlayers = [
-  {
-    name: "AI 1",
-    hand: []
-  },
-  {
-    name: "AI 2",
-    hand: []
-  }
+  { name: "AI 1", hand: [] },
+  { name: "AI 2", hand: [] }
 ];
 
 let dealerHand = [];
 
 let gameOver = true;
 
+let aiVisible = true;
+
 
 // ---------- ELEMENTS ----------
-toggleAIBtn.addEventListener("click", () => {
 
-  showAI = !showAI;
-
-  toggleAIBtn.textContent =
-    showAI ? "Hide AI" : "Show AI";
-
-  renderHands(false);
-
-});
 const dealerCardsEl =
   document.getElementById("dealerCards");
 
@@ -66,13 +51,16 @@ const standBtn =
 const dealBtn =
   document.getElementById("dealBtn");
 
+const toggleAIBtn =
+  document.getElementById("toggleAI");
+
 const felt =
   document.querySelector(".felt");
 
 
-// ---------- AI AREA ----------
+// ---------- AI CONTAINER ----------
 
-const aiContainer =
+let aiContainer =
   document.createElement("div");
 
 aiContainer.id = "aiContainer";
@@ -122,47 +110,69 @@ felt.insertBefore(
   const btn =
     document.createElement("button");
 
-  btn.textContent =
-    "$" + amount;
+  btn.textContent = "$" + amount;
 
-  btn.style.background =
-    "#222";
+  btn.style.background = "#222";
+  btn.style.color = "white";
 
-  btn.style.color =
-    "white";
+  btn.addEventListener("click", () => {
 
-  btn.addEventListener(
-    "click",
-    () => {
+    if (!gameOver) return;
 
-      if (!gameOver) return;
+    if (player.money >= amount) {
 
-      if (player.money >= amount) {
+      player.bet = amount;
 
-        player.bet = amount;
+      updateMoneyDisplay();
 
-        updateMoneyDisplay();
-
-        messageEl.textContent =
-          "Bet placed: $" + amount;
-
-      }
+      messageEl.textContent =
+        "Bet placed: $" + amount;
 
     }
-  );
+
+  });
 
   betControls.appendChild(btn);
 
 });
 
 
-// ---------- CREATE DECK ----------
+// ---------- TOGGLE AI ----------
+
+toggleAIBtn.addEventListener("click", () => {
+
+  aiVisible = !aiVisible;
+
+  toggleAIBtn.textContent =
+    aiVisible ? "Hide AI" : "Show AI";
+
+  if (!aiVisible) {
+
+    aiContainer.remove();
+
+  } else {
+
+    aiContainer =
+      document.createElement("div");
+
+    aiContainer.id = "aiContainer";
+
+    felt.insertBefore(
+      aiContainer,
+      document.querySelector(".controls")
+    );
+
+    renderHands(false);
+  }
+
+});
+
+
+// ---------- DECK ----------
 
 function createDeck() {
 
   deck = [];
-
-  // 6-deck casino shoe
 
   for (let d = 0; d < 6; d++) {
 
@@ -170,10 +180,7 @@ function createDeck() {
 
       for (let value of values) {
 
-        deck.push({
-          suit,
-          value
-        });
+        deck.push({ suit, value });
 
       }
 
@@ -183,21 +190,12 @@ function createDeck() {
 
 }
 
-
-// ---------- SHUFFLE ----------
-
 function shuffleDeck() {
 
-  for (
-    let i = deck.length - 1;
-    i > 0;
-    i--
-  ) {
+  for (let i = deck.length - 1; i > 0; i--) {
 
     const j =
-      Math.floor(
-        Math.random() * (i + 1)
-      );
+      Math.floor(Math.random() * (i + 1));
 
     [deck[i], deck[j]] =
       [deck[j], deck[i]];
@@ -205,9 +203,6 @@ function shuffleDeck() {
   }
 
 }
-
-
-// ---------- DRAW CARD ----------
 
 function drawCard() {
 
@@ -224,54 +219,35 @@ function drawCard() {
 }
 
 
-// ---------- CARD VALUE ----------
+// ---------- LOGIC ----------
 
 function getCardValue(card) {
 
-  if (card.value === "A") {
-    return 11;
-  }
+  if (card.value === "A") return 11;
 
-  if (
-    ["K", "Q", "J"]
-      .includes(card.value)
-  ) {
-
+  if (["K", "Q", "J"].includes(card.value))
     return 10;
-
-  }
 
   return parseInt(card.value);
 
 }
 
-
-// ---------- CALCULATE SCORE ----------
-
 function calculateScore(hand) {
 
   let score = 0;
-
   let aces = 0;
 
-  for (let card of hand) {
+  for (let c of hand) {
 
-    score +=
-      getCardValue(card);
+    score += getCardValue(c);
 
-    if (card.value === "A") {
-      aces++;
-    }
+    if (c.value === "A") aces++;
 
   }
 
-  while (
-    score > 21 &&
-    aces > 0
-  ) {
+  while (score > 21 && aces > 0) {
 
     score -= 10;
-
     aces--;
 
   }
@@ -281,185 +257,141 @@ function calculateScore(hand) {
 }
 
 
-// ---------- CREATE CARD ----------
+// ---------- CARD UI ----------
 
-function createCardElement(
-  card,
-  hidden = false
-) {
+function createCardElement(card, hidden = false) {
 
-  const cardEl =
+  const el =
     document.createElement("div");
 
   if (hidden) {
 
-    cardEl.className =
-      "card back";
+    el.className = "card back";
 
-    return cardEl;
+    return el;
 
   }
 
-  const isRed =
+  const red =
     card.suit === "♥" ||
     card.suit === "♦";
 
-  cardEl.className =
-    isRed
-      ? "card red"
-      : "card";
+  el.className =
+    red ? "card red" : "card";
 
-  cardEl.innerHTML = `
+  el.innerHTML = `
     <div class="corner top-left">
       ${card.value}<br>${card.suit}
     </div>
-
-    <div class="center">
-      ${card.suit}
-    </div>
-
+    <div class="center">${card.suit}</div>
     <div class="corner bottom-right">
       ${card.value}<br>${card.suit}
     </div>
   `;
 
-  return cardEl;
+  return el;
 
 }
 
 
 // ---------- RENDER ----------
 
-function renderHands(
-  showDealer = false
-) {
+function renderHands(showDealer = false) {
 
   dealerCardsEl.innerHTML = "";
   playerCardsEl.innerHTML = "";
-  aiContainer.innerHTML = "";
 
-  // Dealer cards
+  if (aiVisible) {
+    aiContainer.innerHTML = "";
+  }
 
-  dealerHand.forEach(
-    (card, index) => {
+  // Dealer
 
-      const hidden =
-        index === 0 &&
-        !showDealer &&
-        !gameOver;
+  dealerHand.forEach((card, i) => {
 
-      dealerCardsEl.appendChild(
-        createCardElement(
-          card,
-          hidden
-        )
-      );
+    const hidden =
+      i === 0 &&
+      !showDealer &&
+      !gameOver;
 
-    }
-  );
-
-  // Player cards
-
-  player.hand.forEach(card => {
-
-    playerCardsEl.appendChild(
-      createCardElement(card)
+    dealerCardsEl.appendChild(
+      createCardElement(card, hidden)
     );
 
   });
 
-  // AI players
+  // Player
 
-  aiPlayers.forEach(ai => {
+  player.hand.forEach(c => {
 
-  const section =
-    document.createElement("div");
+    playerCardsEl.appendChild(
+      createCardElement(c)
+    );
 
-  section.style.marginBottom = "30px";
+  });
 
-  const cardsHTML = ai.hand.map(card => {
+  // AI
 
-    if (!showAI) {
-      return `<div class="card back"></div>`;
-    }
+  if (aiVisible) {
 
-    const isRed =
-      card.suit === "♥" ||
-      card.suit === "♦";
+    aiPlayers.forEach(ai => {
 
-    return `
-      <div class="card ${isRed ? "red" : ""}">
-        <div class="corner top-left">
-          ${card.value}<br>${card.suit}
-        </div>
-        <div class="center">${card.suit}</div>
-        <div class="corner bottom-right">
-          ${card.value}<br>${card.suit}
-        </div>
-      </div>
-    `;
+      const section =
+        document.createElement("div");
 
-  }).join("");
+      section.style.marginBottom =
+        "25px";
 
-  section.innerHTML = `
-    <h2>${ai.name}</h2>
+      section.innerHTML = `
+        <h2>${ai.name}</h2>
 
-    <div style="
-      display:flex;
-      justify-content:center;
-      gap:10px;
-      flex-wrap:wrap;
-    ">
-      ${cardsHTML}
-    </div>
+        <div style="
+          display:flex;
+          justify-content:center;
+          gap:10px;
+        "></div>
 
-    <p>
-      Score: ${calculateScore(ai.hand)}
-    </p>
-  `;
+        <p>
+          Score:
+          ${calculateScore(ai.hand)}
+        </p>
+      `;
 
-  aiContainer.appendChild(section);
+      const box =
+        section.querySelector("div");
 
-});
+      ai.hand.forEach(c => {
 
-  // Scores
+        box.appendChild(
+          createCardElement(c)
+        );
 
-  if (
-    !showDealer &&
-    !gameOver
-  ) {
+      });
 
-    dealerScoreEl.textContent =
-      getCardValue(
-        dealerHand[1]
-      );
+      aiContainer.appendChild(section);
+
+    });
 
   }
-  else {
 
-    dealerScoreEl.textContent =
-      calculateScore(
-        dealerHand
-      );
-
-  }
+  dealerScoreEl.textContent =
+    gameOver
+      ? calculateScore(dealerHand)
+      : getCardValue(dealerHand[1]);
 
   playerScoreEl.textContent =
-    calculateScore(
-      player.hand
-    );
+    calculateScore(player.hand);
 
 }
 
 
-// ---------- UPDATE MONEY ----------
+// ---------- MONEY ----------
 
 function updateMoneyDisplay() {
 
   moneyDisplay.innerHTML = `
-    Money: $${player.money}
-    <br>
-    Current Bet: $${player.bet}
+    Money: $${player.money}<br>
+    Bet: $${player.bet}
   `;
 
 }
@@ -476,47 +408,30 @@ function endGame(text) {
 
   renderHands(true);
 
-  const playerScore =
-    calculateScore(
-      player.hand
-    );
+  const ps =
+    calculateScore(player.hand);
 
-  const dealerScore =
-    calculateScore(
-      dealerHand
-    );
-
-  // Player win
+  const ds =
+    calculateScore(dealerHand);
 
   if (
-    playerScore <= 21 &&
-    (
-      dealerScore > 21 ||
-      playerScore > dealerScore
-    )
+    ps <= 21 &&
+    (ds > 21 || ps > ds)
   ) {
 
-    player.money +=
-      player.bet;
+    player.money += player.bet;
 
-  }
-
-  // Player lose
-
-  else if (
-    playerScore > 21 ||
-    dealerScore > playerScore
+  } else if (
+    ps > 21 || ds > ps
   ) {
 
-    player.money -=
-      player.bet;
+    player.money -= player.bet;
 
   }
 
   updateMoneyDisplay();
 
-  messageEl.textContent =
-    text;
+  messageEl.textContent = text;
 
 }
 
@@ -525,18 +440,14 @@ function endGame(text) {
 
 function startGame() {
 
-  // Prevent restart mid-round
-
-  if (!gameOver) {
+  if (gameOver === false) {
 
     messageEl.textContent =
-      "Finish the current round first.";
+      "Finish round first.";
 
     return;
 
   }
-
-  // Require bet
 
   if (player.bet <= 0) {
 
@@ -547,76 +458,41 @@ function startGame() {
 
   }
 
-  // Reset state
-
   gameOver = false;
 
   hitBtn.disabled = false;
   standBtn.disabled = false;
 
-  messageEl.textContent = "";
-
-  // Reset hands
-
   player.hand = [];
-
   dealerHand = [];
 
-  aiPlayers.forEach(ai => {
-
-    ai.hand = [];
-
-  });
-
-  // New shuffled shoe
+  aiPlayers.forEach(a => a.hand = []);
 
   createDeck();
-
   shuffleDeck();
 
-  // Initial cards
+  // Deal
 
-  player.hand.push(
-    drawCard()
-  );
+  player.hand.push(drawCard());
+  dealerHand.push(drawCard());
 
-  dealerHand.push(
-    drawCard()
-  );
+  player.hand.push(drawCard());
+  dealerHand.push(drawCard());
 
-  player.hand.push(
-    drawCard()
-  );
+  aiPlayers.forEach(a => {
 
-  dealerHand.push(
-    drawCard()
-  );
-
-  // AI cards
-
-  aiPlayers.forEach(ai => {
-
-    ai.hand.push(
-      drawCard()
-    );
-
-    ai.hand.push(
-      drawCard()
-    );
+    a.hand.push(drawCard());
+    a.hand.push(drawCard());
 
   });
 
-  // AI turns
-
-  aiPlayers.forEach(ai => {
+  aiPlayers.forEach(a => {
 
     while (
-      calculateScore(ai.hand) < 16
+      calculateScore(a.hand) < 16
     ) {
 
-      ai.hand.push(
-        drawCard()
-      );
+      a.hand.push(drawCard());
 
     }
 
@@ -626,133 +502,67 @@ function startGame() {
 
   updateMoneyDisplay();
 
+  messageEl.textContent = "";
+
 }
 
 
-// ---------- PLAYER HIT ----------
+// ---------- PLAYER ACTIONS ----------
 
 function playerHit() {
 
   if (gameOver) return;
 
-  player.hand.push(
-    drawCard()
-  );
+  player.hand.push(drawCard());
 
   renderHands(false);
 
-  const score =
-    calculateScore(
-      player.hand
-    );
+  if (
+    calculateScore(player.hand) > 21
+  ) {
 
-  if (score > 21) {
-
-    endGame(
-      "Player Busts! Dealer Wins!"
-    );
+    endGame("Player Bust!");
 
   }
 
 }
-
-
-// ---------- DEALER TURN ----------
 
 function dealerTurn() {
 
   if (gameOver) return;
 
   while (
-    calculateScore(
-      dealerHand
-    ) < 17
+    calculateScore(dealerHand) < 17
   ) {
 
-    dealerHand.push(
-      drawCard()
-    );
+    dealerHand.push(drawCard());
 
   }
 
   renderHands(true);
 
-  const dealerScore =
-    calculateScore(
-      dealerHand
-    );
+  const ds =
+    calculateScore(dealerHand);
 
-  const playerScore =
-    calculateScore(
-      player.hand
-    );
+  const ps =
+    calculateScore(player.hand);
 
-  if (dealerScore > 21) {
-
-    endGame(
-      "Dealer Busts! Player Wins!"
-    );
-
-  }
-
-  else if (
-    dealerScore > playerScore
-  ) {
-
-    endGame(
-      "Dealer Wins!"
-    );
-
-  }
-
-  else if (
-    playerScore > dealerScore
-  ) {
-
-    endGame(
-      "Player Wins!"
-    );
-
-  }
-
-  else {
-
-    endGame(
-      "Push!"
-    );
-
-  }
+  if (ds > 21) endGame("Dealer Bust!");
+  else if (ds > ps) endGame("Dealer Wins!");
+  else if (ps > ds) endGame("Player Wins!");
+  else endGame("Push!");
 
 }
 
 
-// ---------- BUTTONS ----------
+// ---------- EVENTS ----------
 
-hitBtn.addEventListener(
-  "click",
-  playerHit
-);
-
-standBtn.addEventListener(
-  "click",
-  dealerTurn
-);
-
-dealBtn.addEventListener(
-  "click",
-  () => {
-
-    if (gameOver) {
-
-      startGame();
-
-    }
-
-  }
-);
+hitBtn.onclick = playerHit;
+standBtn.onclick = dealerTurn;
+dealBtn.onclick = startGame;
 
 
-// ---------- INITIAL ----------
+// ---------- INIT ----------
 
 updateMoneyDisplay();
 
