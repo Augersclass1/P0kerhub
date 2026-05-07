@@ -6,7 +6,9 @@ const values = [
 ];
 
 let deck = [];
+let showAI = true;
 
+const toggleAIBtn = document.getElementById("toggleAI");
 let player = {
   hand: [],
   money: 1000,
@@ -30,7 +32,16 @@ let gameOver = true;
 
 
 // ---------- ELEMENTS ----------
+toggleAIBtn.addEventListener("click", () => {
 
+  showAI = !showAI;
+
+  toggleAIBtn.textContent =
+    showAI ? "Hide AI" : "Show AI";
+
+  renderHands(false);
+
+});
 const dealerCardsEl =
   document.getElementById("dealerCards");
 
@@ -361,44 +372,55 @@ function renderHands(
 
   aiPlayers.forEach(ai => {
 
-    const section =
-      document.createElement("div");
+  const section =
+    document.createElement("div");
 
-    section.style.marginBottom =
-      "30px";
+  section.style.marginBottom = "30px";
 
-    section.innerHTML = `
-      <h2>${ai.name}</h2>
+  const cardsHTML = ai.hand.map(card => {
 
-      <div style="
-        display:flex;
-        justify-content:center;
-        gap:10px;
-        flex-wrap:wrap;
-      "></div>
+    if (!showAI) {
+      return `<div class="card back"></div>`;
+    }
 
-      <p>
-        Score:
-        ${calculateScore(ai.hand)}
-      </p>
+    const isRed =
+      card.suit === "♥" ||
+      card.suit === "♦";
+
+    return `
+      <div class="card ${isRed ? "red" : ""}">
+        <div class="corner top-left">
+          ${card.value}<br>${card.suit}
+        </div>
+        <div class="center">${card.suit}</div>
+        <div class="corner bottom-right">
+          ${card.value}<br>${card.suit}
+        </div>
+      </div>
     `;
 
-    const cardsDiv =
-      section.querySelector("div");
+  }).join("");
 
-    ai.hand.forEach(card => {
+  section.innerHTML = `
+    <h2>${ai.name}</h2>
 
-      cardsDiv.appendChild(
-        createCardElement(card)
-      );
+    <div style="
+      display:flex;
+      justify-content:center;
+      gap:10px;
+      flex-wrap:wrap;
+    ">
+      ${cardsHTML}
+    </div>
 
-    });
+    <p>
+      Score: ${calculateScore(ai.hand)}
+    </p>
+  `;
 
-    aiContainer.appendChild(
-      section
-    );
+  aiContainer.appendChild(section);
 
-  });
+});
 
   // Scores
 
