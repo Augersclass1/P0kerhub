@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Casino Blackjack</title>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Roboto, sans-serif;
+      background:
+        radial-gradient(circle at center, #146b3a 0%, #0a3d20 70%);
+      color: white;
+      overflow-x: hidden;
+    }
+
+    .table {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .felt {
+      width: 1100px;
+      max-width: 100%;
+      background: #0f5c2f;
+      border: 12px solid #8b5a2b;
+      border-radius: 300px 300px 80px 80px;
+      padding: 40px;
+      box-shadow:
+        inset 0 0 40px rgba(0,0,0,0.5),
+        0 20px 50px rgba(0,0,0,0.6);
+      position: relative;
+    }
+
+    .table-title {
+      text-align: center;
+      font-size: 42px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      color: gold;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px rgba(255,215,0,0.5);
+    }
+
+    .blackjack-text {
+      text-align: center;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 40px;
+      font-size: 20px;
+      letter-spacing: 3px;
+    }
+
+    .section {
+      margin-bottom: 50px;
+      text-align: center;
+    }
+
+    .section h2 {
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .score {
+      margin-bottom: 15px;
+      font-size: 20px;
+      color: #ffd700;
+    }
+
+    .cards {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      min-height: 170px;
+    }
+
+    .card {
+      width: 110px;
+      height: 155px;
+      background: white;
+      border-radius: 12px;
+      position: relative;
+      color: black;
+      box-shadow:
+        0 10px 20px rgba(0,0,0,0.4);
+      border: 2px solid #ddd;
+      transition: transform 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    .card.red {
+      color: #d40000;
+    }
+
+    .corner {
+      position: absolute;
+      font-size: 22px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .top-left {
+      top: 8px;
+      left: 10px;
+    }
+
+    .bottom-right {
+      bottom: 8px;
+      right: 10px;
+      transform: rotate(180deg);
+    }
+
+    .center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 42px;
+    }
+
+    .back {
+      background:
+        repeating-linear-gradient(
+          45deg,
+          #1d4ed8,
+          #1d4ed8 10px,
+          #2563eb 10px,
+          #2563eb 20px
+        );
+      border: 3px solid white;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+    }
+
+    #hitBtn {
+      background: #1e88e5;
+      color: white;
+    }
+
+    #standBtn {
+      background: #fb8c00;
+      color: white;
+    }
+
+    #dealBtn {
+      background: #43a047;
+      color: white;
+    }
+
+    #message {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      min-height: 40px;
+      color: gold;
+    }
+
+    .chips {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 25px;
+    }
+
+    .chip {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      border: 5px dashed white;
+      box-shadow: 0 5px 10px rgba(0,0,0,0.4);
+    }
+
+    .red-chip {
+      background: #c62828;
+    }
+
+    .blue-chip {
+      background: #1565c0;
+    }
+
+    .green-chip {
+      background: #2e7d32;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="table">
+    <div class="felt">
+
+      <div class="table-title">CASINO</div>
+      <div class="blackjack-text">BLACKJACK PAYS 3 TO 2</div>
+
+      <div class="section">
+        <h2>Dealer</h2>
+        <div class="score">
+          Score: <span id="dealerScore">0</span>
+        </div>
+
+        <div id="dealerCards" class="cards"></div>
+      </div>
+
+      <div class="section">
+        <h2>Player</h2>
+        <div class="score">
+          Score: <span id="playerScore">0</span>
+        </div>
+
+        <div id="playerCards" class="cards"></div>
+      </div>
+
+      <div class="controls">
+        <button id="hitBtn">Hit</button>
+        <button id="standBtn">Stand</button>
+        <button id="dealBtn">Deal</button>
+      </div>
+
+      <div class="chips">
+        <div class="chip red-chip">$5</div>
+        <div class="chip blue-chip">$25</div>
+        <div class="chip green-chip">$100</div>
+      </div>
+
+      <div id="message"></div>
+
+    </div>
+  </div>
+
+  <script src="blackjack.js"></script>
+
+</body>
+</html>
