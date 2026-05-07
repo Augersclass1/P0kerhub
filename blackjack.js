@@ -16,13 +16,11 @@ let player = {
 let aiPlayers = [
   {
     name: "AI 1",
-    hand: [],
-    bet: 0
+    hand: []
   },
   {
     name: "AI 2",
-    hand: [],
-    bet: 0
+    hand: []
   }
 ];
 
@@ -61,7 +59,7 @@ const felt =
   document.querySelector(".felt");
 
 
-// ---------- AI CONTAINER ----------
+// ---------- AI AREA ----------
 
 const aiContainer =
   document.createElement("div");
@@ -130,8 +128,7 @@ felt.insertBefore(
 
       if (player.money >= amount) {
 
-        player.bet =
-          amount;
+        player.bet = amount;
 
         updateMoneyDisplay();
 
@@ -154,7 +151,7 @@ function createDeck() {
 
   deck = [];
 
-  // 6-deck shoe
+  // 6-deck casino shoe
 
   for (let d = 0; d < 6; d++) {
 
@@ -330,7 +327,7 @@ function renderHands(
   playerCardsEl.innerHTML = "";
   aiContainer.innerHTML = "";
 
-  // Dealer
+  // Dealer cards
 
   dealerHand.forEach(
     (card, index) => {
@@ -350,7 +347,7 @@ function renderHands(
     }
   );
 
-  // Player
+  // Player cards
 
   player.hand.forEach(card => {
 
@@ -360,7 +357,7 @@ function renderHands(
 
   });
 
-  // AI Players
+  // AI players
 
   aiPlayers.forEach(ai => {
 
@@ -415,7 +412,8 @@ function renderHands(
         dealerHand[1]
       );
 
-  } else {
+  }
+  else {
 
     dealerScoreEl.textContent =
       calculateScore(
@@ -466,7 +464,7 @@ function endGame(text) {
       dealerHand
     );
 
-  // WIN
+  // Player win
 
   if (
     playerScore <= 21 &&
@@ -481,7 +479,7 @@ function endGame(text) {
 
   }
 
-  // LOSE
+  // Player lose
 
   else if (
     playerScore > 21 ||
@@ -501,26 +499,22 @@ function endGame(text) {
 }
 
 
-// ---------- AI TURN ----------
-
-function aiTurn(ai) {
-
-  while (
-    calculateScore(ai.hand) < 16
-  ) {
-
-    ai.hand.push(
-      drawCard()
-    );
-
-  }
-
-}
-
-
 // ---------- START GAME ----------
 
 function startGame() {
+
+  // Prevent restart mid-round
+
+  if (!gameOver) {
+
+    messageEl.textContent =
+      "Finish the current round first.";
+
+    return;
+
+  }
+
+  // Require bet
 
   if (player.bet <= 0) {
 
@@ -531,33 +525,34 @@ function startGame() {
 
   }
 
+  // Reset state
+
   gameOver = false;
 
   hitBtn.disabled = false;
   standBtn.disabled = false;
 
-  createDeck();
+  messageEl.textContent = "";
 
-  shuffleDeck();
+  // Reset hands
 
   player.hand = [];
+
   dealerHand = [];
 
   aiPlayers.forEach(ai => {
 
     ai.hand = [];
 
-    ai.bet =
-      [10,25,50]
-      [
-        Math.floor(
-          Math.random() * 3
-        )
-      ];
-
   });
 
-  // Initial deal
+  // New shuffled shoe
+
+  createDeck();
+
+  shuffleDeck();
+
+  // Initial cards
 
   player.hand.push(
     drawCard()
@@ -575,7 +570,7 @@ function startGame() {
     drawCard()
   );
 
-  // AI hands
+  // AI cards
 
   aiPlayers.forEach(ai => {
 
@@ -593,16 +588,21 @@ function startGame() {
 
   aiPlayers.forEach(ai => {
 
-    aiTurn(ai);
+    while (
+      calculateScore(ai.hand) < 16
+    ) {
+
+      ai.hand.push(
+        drawCard()
+      );
+
+    }
 
   });
 
   renderHands(false);
 
   updateMoneyDisplay();
-
-  messageEl.textContent =
-    "";
 
 }
 
@@ -617,20 +617,18 @@ function playerHit() {
     drawCard()
   );
 
+  renderHands(false);
+
   const score =
     calculateScore(
       player.hand
     );
-
-  renderHands(false);
 
   if (score > 21) {
 
     endGame(
       "Player Busts! Dealer Wins!"
     );
-
-    return;
 
   }
 
@@ -697,7 +695,9 @@ function dealerTurn() {
 
   else {
 
-    endGame("Push!");
+    endGame(
+      "Push!"
+    );
 
   }
 
@@ -718,11 +718,19 @@ standBtn.addEventListener(
 
 dealBtn.addEventListener(
   "click",
-  startGame
+  () => {
+
+    if (gameOver) {
+
+      startGame();
+
+    }
+
+  }
 );
 
 
-// ---------- START ----------
+// ---------- INITIAL ----------
 
 updateMoneyDisplay();
 
