@@ -9,10 +9,10 @@ let turnIndex = 0;
 let handActive = false;
 let stage = 0; // 0 preflop, 1 flop, 2 turn, 3 river
 
-
 function panicmode() {
     window.location.href = "https://google.com";
 }
+
 /* ---------------- LOG ---------------- */
 
 function log(msg) {
@@ -20,16 +20,21 @@ function log(msg) {
   el.innerHTML += msg + "<br>";
   el.scrollTop = el.scrollHeight;
 }
+
 function setValue(val) {
   document.getElementById("raiseAmount").value = val;
 }
+
 /* ---------------- CARD RENDER ---------------- */
 
 function renderCard(c) {
   const red = ["♥", "♦"];
-  return `<div class="card ${red.includes(c.suit) ? "red" : "black"}">
-            ${c.value}${c.suit}
-          </div>`;
+
+  return `
+    <div class="card ${red.includes(c.suit) ? "red" : "black"}">
+      ${c.value}${c.suit}
+    </div>
+  `;
 }
 
 /* ---------------- SETUP ---------------- */
@@ -42,7 +47,8 @@ function createPlayers() {
     money: 1000,
     hand: [],
     bet: 0,
-    folded: false
+    folded: false,
+    acted: false
   });
 
   for (let i = 1; i <= 3; i++) {
@@ -51,21 +57,27 @@ function createPlayers() {
       money: 1000,
       hand: [],
       bet: 0,
-      folded: false
+      folded: false,
+      acted: false
     });
   }
 }
 
 function createDeck() {
-  const suits = ["♠","♥","♦","♣"];
+  const suits = ["♠", "♥", "♦", "♣"];
   const values = [2,3,4,5,6,7,8,9,10,"J","Q","K","A"];
 
   deck = [];
+
   for (let s of suits) {
     for (let v of values) {
-      deck.push({ value: v, suit: s });
+      deck.push({
+        value: v,
+        suit: s
+      });
     }
   }
+
   deck.sort(() => Math.random() - 0.5);
 }
 
@@ -76,7 +88,9 @@ function draw() {
 /* ---------------- START HAND ---------------- */
 
 function startHand() {
-  if (players.length === 0) createPlayers();
+  if (players.length === 0) {
+    createPlayers();
+  }
 
   createDeck();
 
@@ -90,12 +104,14 @@ function startHand() {
     p.hand = [draw(), draw()];
     p.bet = 0;
     p.folded = false;
+    p.acted = false;
   }
 
   turnIndex = 0;
 
   log("New hand started.");
   log("Your turn.");
+
   updateUI();
 }
 
@@ -106,31 +122,45 @@ function nextTurn() {
 
   let active = players.filter(p => !p.folded);
 
+  // only one player left
   if (active.length === 1) {
     active[0].money += pot;
+
     log(active[0].name + " wins (everyone folded).");
+
+    pot = 0;
     handActive = false;
+
+    updateUI();
     return;
   }
 
   turnIndex = (turnIndex + 1) % players.length;
 
+  // skip folded players
   if (players[turnIndex].folded) {
     nextTurn();
     return;
   }
 
+  // player turn
   if (turnIndex === 0) {
     log("Your turn.");
     updateUI();
     return;
   }
 
+  // AI turn
   setTimeout(() => {
     aiTurn(players[turnIndex]);
+
     updateUI();
-    checkRoundEnd();   // IMPORTANT
-    nextTurn();
+
+    checkRoundEnd();
+
+    if (handActive) {
+      nextTurn();
+    }
   }, 500);
 }
 
@@ -138,6 +168,7 @@ function nextTurn() {
 
 function playerAction(action) {
   if (!handActive) return;
+
   if (turnIndex !== 0) {
     log("Not your turn.");
     return;
@@ -145,21 +176,41 @@ function playerAction(action) {
 
   let p = players[0];
 
+  /* ---------- FOLD ---------- */
+
   if (action === "fold") {
     p.folded = true;
+    p.acted = true;
+
     log("You fold.");
   }
 
-  if (action === "call") {
+  /* ---------- CALL ---------- */
+
+  else if (action === "call") {
     let diff = currentBet - p.bet;
+
+    if (diff < 0) diff = 0;
+    if (diff > p.money) diff = p.money;
+
     p.money -= diff;
     p.bet += diff;
     pot += diff;
-    log("You call.");
+
+    p.acted = true;
+
+    if (diff === 0) {
+      log("You check.");
+    } else {
+      log("You call.");
+    }
   }
 
-  if (action === "raise") {
-    let amount = parseInt(document.getElementById("raiseAmount").value) || 0;
+  /* ---------- RAISE ---------- */
+
+  else if (action === "raise") {
+    let amount =
+      parseInt(document.getElementById("raiseAmount").value) || 0;
 
     if (amount <= 0) {
       log("Invalid raise.");
@@ -179,34 +230,54 @@ function playerAction(action) {
     currentBet = newBet;
     pot += diff;
 
+    p.acted = true;
+
+    // everyone else must respond again
+    for (let other of players) {
+      if (other !== p && !other.folded) {
+        other.acted = false;
+      }
+    }
+
     log("You raise to " + newBet);
   }
 
   updateUI();
-  checkRoundEnd(); // IMPORTANT
-  nextTurn();
+
+  checkRoundEnd();
+
+  if (handActive) {
+    nextTurn();
+  }
 }
 
 /* ---------------- AI ---------------- */
+
 function aiTurn(p) {
   if (p.folded) return;
 
   let r = Math.random();
 
-  // --- FOLD ---
+  /* ---------- FOLD ---------- */
+
   if (r < 0.2) {
     p.folded = true;
+    p.acted = true;
+
     log(p.name + " folds.");
     return;
   }
 
-  // --- CALL / CHECK ---
+  /* ---------- CALL / CHECK ---------- */
+
   if (r < 0.7) {
     let diff = currentBet - p.bet;
 
-    if (diff > 0) {
-      if (diff > p.money) diff = p.money;
+    if (diff > p.money) {
+      diff = p.money;
+    }
 
+    if (diff > 0) {
       p.money -= diff;
       p.bet += diff;
       pot += diff;
@@ -216,119 +287,183 @@ function aiTurn(p) {
       log(p.name + " checks.");
     }
 
+    p.acted = true;
+
     return;
   }
 
-  // --- RAISE (FIXED LOGIC) ---
+  /* ---------- RAISE ---------- */
+
   let minRaise = 20;
   let maxRaise = 100;
 
-  // random raise size
-  let raiseSize = Math.floor(Math.random() * (maxRaise - minRaise)) + minRaise;
+  let raiseSize =
+    Math.floor(Math.random() * (maxRaise - minRaise)) + minRaise;
 
-  // target total bet (NOT increment)
   let targetBet = currentBet + raiseSize;
 
-  // calculate needed chips
   let diff = targetBet - p.bet;
 
-  // if AI can't afford full raise → treat as call/all-in
+  // can't afford raise
   if (diff > p.money) {
     diff = p.money;
     targetBet = p.bet + diff;
 
-    // if still not beating current bet → it's a call
+    // becomes call
     if (targetBet <= currentBet) {
       let callDiff = currentBet - p.bet;
 
-      if (callDiff > p.money) callDiff = p.money;
+      if (callDiff > p.money) {
+        callDiff = p.money;
+      }
 
       p.money -= callDiff;
       p.bet += callDiff;
       pot += callDiff;
+
+      p.acted = true;
 
       log(p.name + " calls (low money).");
       return;
     }
   }
 
-  // apply raise
   p.money -= diff;
   p.bet += diff;
+
   currentBet = p.bet;
+
   pot += diff;
+
+  p.acted = true;
+
+  // everyone else must respond again
+  for (let other of players) {
+    if (other !== p && !other.folded) {
+      other.acted = false;
+    }
+  }
 
   log(p.name + " raises to " + currentBet);
 }
 
-/* ---------------- ROUND SYSTEM (FIX) ---------------- */
+/* ---------------- ROUND SYSTEM ---------------- */
 
 function checkRoundEnd() {
   let active = players.filter(p => !p.folded);
 
-  if (active.length <= 1) return;
+  // one player left
+  if (active.length <= 1) {
+    return;
+  }
 
-  let allEqual = active.every(p => p.bet === currentBet);
+  // everyone matched bet
+  let allEqual =
+    active.every(p => p.bet === currentBet);
 
-  if (!allEqual) return;
+  // everyone acted
+  let allActed =
+    active.every(p => p.acted);
 
-  // reset bets
+  if (!allEqual || !allActed) {
+    return;
+  }
+
+  // reset betting round
   for (let p of players) {
     p.bet = 0;
+    p.acted = false;
   }
 
   currentBet = 0;
+
   stage++;
+
+  /* ---------- FLOP ---------- */
 
   if (stage === 1) {
     community.push(draw(), draw(), draw());
+
     log("Flop dealt.");
   }
 
+  /* ---------- TURN ---------- */
+
   else if (stage === 2) {
     community.push(draw());
+
     log("Turn dealt.");
   }
 
+  /* ---------- RIVER ---------- */
+
   else if (stage === 3) {
     community.push(draw());
+
     log("River dealt.");
   }
 
+  /* ---------- SHOWDOWN ---------- */
+
   else {
     showdown();
+
     handActive = false;
   }
+
+  updateUI();
 }
 
-/* ---------------- SHOWDOWN ---------------- */
+/* ---------------- HAND EVALUATION ---------------- */
 
 function value(v) {
-  if (v==="J") return 11;
-  if (v==="Q") return 12;
-  if (v==="K") return 13;
-  if (v==="A") return 14;
+  if (v === "J") return 11;
+  if (v === "Q") return 12;
+  if (v === "K") return 13;
+  if (v === "A") return 14;
+
   return v;
 }
 
 function evaluate(cards) {
-  let vals = cards.map(c=>value(c.value)).sort((a,b)=>b-a);
+  let vals =
+    cards.map(c => value(c.value))
+         .sort((a, b) => b - a);
+
   let counts = {};
 
-  vals.forEach(v => counts[v] = (counts[v]||0)+1);
+  vals.forEach(v => {
+    counts[v] = (counts[v] || 0) + 1;
+  });
 
-  let groups = Object.entries(counts)
-    .map(([v,c]) => ({v:parseInt(v), c}))
-    .sort((a,b)=>b.c - a.c || b.v - a.v);
+  let groups =
+    Object.entries(counts)
+      .map(([v, c]) => ({
+        v: parseInt(v),
+        c
+      }))
+      .sort((a, b) => b.c - a.c || b.v - a.v);
 
+  // four of a kind
   if (groups[0].c === 4) return 7;
+
+  // full house
   if (groups[0].c === 3 && groups[1]?.c === 2) return 6;
+
+  // three of a kind
   if (groups[0].c === 3) return 3;
+
+  // two pair
   if (groups[0].c === 2 && groups[1]?.c === 2) return 2;
+
+  // pair
   if (groups[0].c === 2) return 1;
 
+  // high card
   return 0;
 }
+
+/* ---------------- SHOWDOWN ---------------- */
 
 function showdown() {
   log("Showdown!");
@@ -339,14 +474,17 @@ function showdown() {
   for (let p of players) {
     if (p.folded) continue;
 
-    let score = evaluate([...p.hand, ...community]);
+    let score =
+      evaluate([...p.hand, ...community]);
 
     log(p.name + " score: " + score);
 
     if (score > best) {
       best = score;
       winners = [p];
-    } else if (score === best) {
+    }
+
+    else if (score === best) {
       winners.push(p);
     }
   }
@@ -357,30 +495,49 @@ function showdown() {
     w.money += split;
   }
 
-  log("Winner(s): " + winners.map(w=>w.name).join(", "));
+  log(
+    "Winner(s): " +
+    winners.map(w => w.name).join(", ")
+  );
+
   pot = 0;
+
+  updateUI();
 }
 
 /* ---------------- UI ---------------- */
 
 function updateUI() {
-  document.getElementById("pot").textContent = pot;
-  document.getElementById("currentBet").textContent = currentBet;
-  document.getElementById("money").textContent = players[0]?.money || 0;
+  document.getElementById("pot").textContent =
+    pot;
+
+  document.getElementById("currentBet").textContent =
+    currentBet;
+
+  document.getElementById("money").textContent =
+    players[0]?.money || 0;
+
+  /* ---------- PLAYER CARDS ---------- */
 
   document.getElementById("playerCards").innerHTML =
     players[0].hand.map(renderCard).join("");
 
+  /* ---------- COMMUNITY ---------- */
+
   document.getElementById("communityCards").innerHTML =
     community.map(renderCard).join("");
+
+  /* ---------- AI PLAYERS ---------- */
 
   for (let i = 1; i <= 3; i++) {
     let el = document.getElementById("p" + i);
 
     el.innerHTML =
       `<b>${players[i].name}</b><br>` +
-      `<div class="card-back"></div><div class="card-back"></div><br>` +
-      `Money: $${players[i].money}`;
+      `<div class="card-back"></div>` +
+      `<div class="card-back"></div><br>` +
+      `Money: $${players[i].money}<br>` +
+      `Bet: $${players[i].bet}`;
   }
 }
 
