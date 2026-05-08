@@ -17,10 +17,7 @@ function panicmode() {
 
 function getChips() {
   let chips = localStorage.getItem("chips");
-
-  if (chips === null) {
-    return 1000;
-  }
+  if (chips === null) return 1000;
   return Number(chips);
 }
 
@@ -30,10 +27,6 @@ function log(msg) {
   let el = document.getElementById("log");
   el.innerHTML += msg + "<br>";
   el.scrollTop = el.scrollHeight;
-}
-
-function setValue(val) {
-  document.getElementById("raiseAmount").value = val;
 }
 
 /* ---------------- CARD RENDER ---------------- */
@@ -57,8 +50,7 @@ function createPlayers() {
     money: getChips(),
     hand: [],
     bet: 0,
-    folded: false,
-    acted: false
+    folded: false
   });
 
   for (let i = 1; i <= 3; i++) {
@@ -67,8 +59,7 @@ function createPlayers() {
       money: 1000,
       hand: [],
       bet: 0,
-      folded: false,
-      acted: false
+      folded: false
     });
   }
 }
@@ -111,7 +102,6 @@ function startHand() {
     p.hand = [draw(), draw()];
     p.bet = 0;
     p.folded = false;
-    p.acted = false;
   }
 
   turnIndex = 0;
@@ -120,7 +110,7 @@ function startHand() {
   updateUI();
 }
 
-/* ---------------- TURN SYSTEM ---------------- */
+/* ---------------- TURN SYSTEM (FIXED) ---------------- */
 
 function nextTurn() {
   if (!handActive) return;
@@ -136,25 +126,30 @@ function nextTurn() {
     return;
   }
 
-  turnIndex = (turnIndex + 1) % players.length;
+  // ADVANCE TURN SAFELY (NO RECURSION)
+  do {
+    turnIndex = (turnIndex + 1) % players.length;
+  } while (players[turnIndex].folded);
 
-  if (players[turnIndex].folded) return nextTurn();
-
+  // PLAYER TURN
   if (turnIndex === 0) {
     log("Your turn.");
     updateUI();
     return;
   }
 
+  // AI TURN
   setTimeout(() => {
     aiTurn(players[turnIndex]);
+
     updateUI();
     checkRoundEnd();
+
     if (handActive) nextTurn();
   }, 400);
 }
 
-/* ---------------- ACTIONS ---------------- */
+/* ---------------- PLAYER ACTIONS ---------------- */
 
 function playerAction(action) {
   if (!handActive || turnIndex !== 0) return;
@@ -187,13 +182,13 @@ function playerAction(action) {
     currentBet = newBet;
     pot += diff;
 
-    for (let o of players) if (o !== p) o.acted = false;
-
     log("You raise to " + newBet);
   }
 
   updateUI();
   checkRoundEnd();
+
+  // ONLY advance turn here (safe now)
   nextTurn();
 }
 
@@ -212,7 +207,6 @@ function aiTurn(p) {
 
   if (r < 0.7) {
     let diff = Math.min(currentBet - p.bet, p.money);
-
     p.money -= diff;
     p.bet += diff;
     pot += diff;
@@ -232,12 +226,10 @@ function aiTurn(p) {
   currentBet = newBet;
   pot += diff;
 
-  for (let o of players) if (o !== p) o.acted = false;
-
   log(p.name + " raises to " + currentBet);
 }
 
-/* ---------------- ROUND ---------------- */
+/* ---------------- ROUND LOGIC ---------------- */
 
 function checkRoundEnd() {
   let active = players.filter(p => !p.folded);
@@ -249,7 +241,6 @@ function checkRoundEnd() {
 
   for (let p of players) {
     p.bet = 0;
-    p.acted = false;
   }
 
   currentBet = 0;
@@ -277,116 +268,7 @@ function checkRoundEnd() {
   updateUI();
 }
 
-/* ---------------- HAND EVALUATION (FIXED) ---------------- */
-
-function value(v) {
-  if (v === "J") return 11;
-  if (v === "Q") return 12;
-  if (v === "K") return 13;
-  if (v === "A") return 14;
-  return v;
-}
-
-function getCombinations(arr, k) {
-  let res = [];
-
-  function backtrack(start, combo) {
-    if (combo.length === k) {
-      res.push(combo);
-      return;
-    }
-    for (let i = start; i < arr.length; i++) {
-      backtrack(i + 1, combo.concat([arr[i]]));
-    }
-  }
-
-  backtrack(0, []);
-  return res;
-}
-
-/* ---- evaluate 5-card hand ---- */
-
-function evaluate5(hand) {
-  let vals = hand.map(c => value(c.value)).sort((a,b)=>b-a);
-  let suits = hand.map(c => c.suit);
-
-  let counts = {};
-  vals.forEach(v => counts[v] = (counts[v] || 0) + 1);
-
-  let groups = Object.entries(counts)
-    .map(([v,c]) => ({v:+v,c}))
-    .sort((a,b)=>b.c - a.c || b.v - a.v);
-
-  let isFlush = suits.every(s => s === suits[0]);
-
-  let unique = [...new Set(vals)].sort((a,b)=>a-b);
-  let isStraight = false;
-
-  for (let i=0;i<=unique.length-5;i++) {
-    let seq = unique.slice(i,i+5);
-    if (seq[4]-seq[0] === 4) isStraight = true;
-  }
-
-  // wheel straight
-  if ([14,5,4,3,2].every(v => vals.includes(v))) {
-    isStraight = true;
-    vals = [5];
-  }
-
-  // straight flush
-  if (isFlush && isStraight) return {rank:8, kick:vals};
-
-  // quads
-  if (groups[0].c === 4) return {rank:7, kick:[groups[0].v]};
-
-  // full house
-  if (groups[0].c === 3 && groups[1]?.c === 2)
-    return {rank:6, kick:[groups[0].v,groups[1].v]};
-
-  // flush
-  if (isFlush) return {rank:5, kick:vals};
-
-  // straight
-  if (isStraight) return {rank:4, kick:vals};
-
-  // trips
-  if (groups[0].c === 3)
-    return {rank:3, kick:[groups[0].v,...vals.filter(v=>v!==groups[0].v)]};
-
-  // two pair
-  if (groups[0].c === 2 && groups[1]?.c === 2)
-    return {rank:2, kick:[groups[0].v,groups[1].v]};
-
-  // pair
-  if (groups[0].c === 2)
-    return {rank:1, kick:[groups[0].v,...vals.filter(v=>v!==groups[0].v)]};
-
-  return {rank:0, kick:vals};
-}
-
-function compare(a,b){
-  if (a.rank !== b.rank) return a.rank - b.rank;
-
-  for (let i=0;i<Math.max(a.kick.length,b.kick.length);i++){
-    if ((a.kick[i]||0) !== (b.kick[i]||0))
-      return (a.kick[i]||0) - (b.kick[i]||0);
-  }
-  return 0;
-}
-
-function evaluateBest(cards){
-  let combos = getCombinations(cards,5);
-  let best = null;
-
-  for (let c of combos){
-    let val = evaluate5(c);
-    if (!best || compare(val,best)>0) best = val;
-  }
-
-  return best;
-}
-
-/* ---------------- SHOWDOWN FIXED ---------------- */
+/* ---------------- SHOWDOWN ---------------- */
 
 function showdown() {
   log("Showdown!");
@@ -399,13 +281,11 @@ function showdown() {
 
     let score = evaluateBest([...p.hand, ...community]);
 
-    log(p.name + " rank " + score.rank);
-
-    if (!best || compare(score,best) > 0) {
+    if (!best || compare(score, best) > 0) {
       best = score;
       winners = [p];
     }
-    else if (compare(score,best) === 0) {
+    else if (compare(score, best) === 0) {
       winners.push(p);
     }
   }
@@ -416,7 +296,7 @@ function showdown() {
 
   localStorage.setItem("chips", players[0].money);
 
-  log("Winner(s): " + winners.map(w=>w.name).join(", "));
+  log("Winner(s): " + winners.map(w => w.name).join(", "));
 
   pot = 0;
   updateUI();
@@ -435,8 +315,8 @@ function updateUI() {
   document.getElementById("communityCards").innerHTML =
     community.map(renderCard).join("");
 
-  for (let i=1;i<=3;i++){
-    document.getElementById("p"+i).innerHTML =
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById("p" + i).innerHTML =
       `<b>${players[i].name}</b><br>
        <div class="card-back"></div>
        <div class="card-back"></div><br>
