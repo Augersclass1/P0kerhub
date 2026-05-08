@@ -16,8 +16,10 @@ function getChips() {
     let chips = localStorage.getItem("chips");
 
     if (chips === null) {
+        alert("no chips found")
         return 1000;
     } else {
+        alert("loaded chips");
         return Number(chips);
     }
 }
