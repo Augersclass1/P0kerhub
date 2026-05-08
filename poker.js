@@ -12,6 +12,15 @@ let stage = 0; // 0 preflop, 1 flop, 2 turn, 3 river
 function panicmode() {
     window.location.href = "https://google.com";
 }
+function getChips() {
+    let chips = localStorage.getItem("chips");
+
+    if (chips === null) {
+        return 1000;
+    } else {
+        return Number(chips);
+    }
+}
 
 /* ---------------- LOG ---------------- */
 
@@ -44,7 +53,7 @@ function createPlayers() {
 
   players.push({
     name: "You",
-    money: 1000,
+    money: getChips(),
     hand: [],
     bet: 0,
     folded: false,
@@ -494,7 +503,7 @@ function showdown() {
   for (let w of winners) {
     w.money += split;
   }
-
+  localStorage.setItem("chips", players[0].money);
   log(
     "Winner(s): " +
     winners.map(w => w.name).join(", ")
