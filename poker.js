@@ -11,8 +11,6 @@ let stage = 0;
 
 /* ---------------- UTIL ---------------- */
 
-const originalTitle = document.title;
-
 document.addEventListener("visibilitychange", () => {
   document.title = document.hidden ? "google" : "poker";
 });
@@ -33,17 +31,6 @@ function log(msg) {
   let el = document.getElementById("log");
   el.innerHTML += msg + "<br>";
   el.scrollTop = el.scrollHeight;
-}
-
-/* ---------------- CARD RENDER ---------------- */
-
-function renderCard(c) {
-  const red = ["♥", "♦"];
-  return `
-    <div class="card ${red.includes(c.suit) ? "red" : "black"}">
-      ${c.value}${c.suit}
-    </div>
-  `;
 }
 
 /* ---------------- PLAYERS ---------------- */
@@ -133,19 +120,20 @@ function nextTurn() {
     return;
   }
 
-  // advance to next active player
+  /* ALWAYS ADVANCE FIRST (CRITICAL FIX) */
   do {
     turnIndex = (turnIndex + 1) % players.length;
   } while (players[turnIndex].folded);
 
-  // PLAYER TURN
+  updateUI();
+
+  /* PLAYER TURN */
   if (turnIndex === 0) {
     log("Your turn.");
-    updateUI();
     return;
   }
 
-  // AI TURN
+  /* AI TURN */
   setTimeout(() => {
     aiTurn(players[turnIndex]);
 
@@ -153,7 +141,7 @@ function nextTurn() {
     checkRoundEnd();
 
     if (handActive) {
-      setTimeout(nextTurn, 0);
+      nextTurn();
     }
   }, 400);
 }
@@ -198,8 +186,10 @@ function playerAction(action) {
   updateUI();
   checkRoundEnd();
 
-  // IMPORTANT: only ONE turn advance trigger
-  setTimeout(nextTurn, 0);
+  /* CRITICAL FIX: always advance turn AFTER action */
+  setTimeout(() => {
+    nextTurn();
+  }, 0);
 }
 
 /* ---------------- AI ---------------- */
@@ -248,7 +238,6 @@ function checkRoundEnd() {
   let done = active.every(p => p.bet === currentBet);
   if (!done) return;
 
-  // reset bets
   for (let p of players) {
     p.bet = 0;
   }
@@ -256,7 +245,7 @@ function checkRoundEnd() {
   currentBet = 0;
   stage++;
 
-  // FIXED TURN RESET (NO -1 BUG)
+  /* SAFE RESET (NOT -1) */
   turnIndex = 0;
 
   if (stage === 1) {
