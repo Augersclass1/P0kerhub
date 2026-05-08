@@ -359,20 +359,16 @@ function aiTurn(p) {
 }
 
 /* ---------------- ROUND SYSTEM ---------------- */
-
 function checkRoundEnd() {
   let active = players.filter(p => !p.folded);
 
-  // one player left
   if (active.length <= 1) {
     return;
   }
 
-  // everyone matched bet
   let allEqual =
     active.every(p => p.bet === currentBet);
 
-  // everyone acted
   let allActed =
     active.every(p => p.acted);
 
@@ -380,7 +376,7 @@ function checkRoundEnd() {
     return;
   }
 
-  // reset betting round
+  // reset bets + acted
   for (let p of players) {
     p.bet = 0;
     p.acted = false;
@@ -390,11 +386,16 @@ function checkRoundEnd() {
 
   stage++;
 
+  /* ---------- NEXT ROUND STARTS ---------- */
+
+  // IMPORTANT FIX:
+  // make nextTurn() begin correctly
+  turnIndex = -1;
+
   /* ---------- FLOP ---------- */
 
   if (stage === 1) {
     community.push(draw(), draw(), draw());
-
     log("Flop dealt.");
   }
 
@@ -402,7 +403,6 @@ function checkRoundEnd() {
 
   else if (stage === 2) {
     community.push(draw());
-
     log("Turn dealt.");
   }
 
@@ -410,7 +410,6 @@ function checkRoundEnd() {
 
   else if (stage === 3) {
     community.push(draw());
-
     log("River dealt.");
   }
 
@@ -418,7 +417,6 @@ function checkRoundEnd() {
 
   else {
     showdown();
-
     handActive = false;
   }
 
