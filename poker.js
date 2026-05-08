@@ -10,7 +10,15 @@ let handActive = false;
 let stage = 0;
 
 /* ---------------- UTIL ---------------- */
+const originalTitle = document.title;
 
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    document.title = "google";
+  } else {
+    document.title = "poker";
+  }
+});
 function panicmode() {
   window.location.href = "https://google.com";
 }
