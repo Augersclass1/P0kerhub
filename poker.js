@@ -10,7 +10,9 @@ let handActive = false;
 let stage = 0;
 
 /* ---------------- UTIL ---------------- */
-
+function setValue(v) {
+  document.getElementById("raiseAmount").value = v;
+}
 document.addEventListener("visibilitychange", () => {
   document.title = document.hidden ? "google" : "poker-4.3";
 });
@@ -267,3 +269,7 @@ function checkRoundEnd() {
   updateUI();
   return true;
 }
+window.playerAction = playerAction;
+window.startHand = startHand;
+window.panicmode = panicmode;
+window.setValue = setValue;
