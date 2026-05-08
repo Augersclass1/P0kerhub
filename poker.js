@@ -12,7 +12,7 @@ let stage = 0;
 /* ---------------- UTIL ---------------- */
 
 document.addEventListener("visibilitychange", () => {
-  document.title = document.hidden ? "google" : "poker";
+  document.title = document.hidden ? "google" : "poker-4.3";
 });
 
 function panicmode() {
