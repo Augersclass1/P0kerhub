@@ -7,21 +7,21 @@ let currentBet = 0;
 
 let turnIndex = 0;
 let handActive = false;
-let stage = 0; // 0 preflop, 1 flop, 2 turn, 3 river
+let stage = 0;
+
+/* ---------------- UTIL ---------------- */
 
 function panicmode() {
-    window.location.href = "https://google.com";
+  window.location.href = "https://google.com";
 }
-function getChips() {
-    let chips = localStorage.getItem("chips");
 
-    if (chips === null) {
-        alert("no chips found")
-        return 1000;
-    } else {
-        alert("loaded chips");
-        return Number(chips);
-    }
+function getChips() {
+  let chips = localStorage.getItem("chips");
+
+  if (chips === null) {
+    return 1000;
+  }
+  return Number(chips);
 }
 
 /* ---------------- LOG ---------------- */
@@ -40,7 +40,6 @@ function setValue(val) {
 
 function renderCard(c) {
   const red = ["♥", "♦"];
-
   return `
     <div class="card ${red.includes(c.suit) ? "red" : "black"}">
       ${c.value}${c.suit}
@@ -48,7 +47,7 @@ function renderCard(c) {
   `;
 }
 
-/* ---------------- SETUP ---------------- */
+/* ---------------- PLAYERS ---------------- */
 
 function createPlayers() {
   players = [];
@@ -74,6 +73,8 @@ function createPlayers() {
   }
 }
 
+/* ---------------- DECK ---------------- */
+
 function createDeck() {
   const suits = ["♠", "♥", "♦", "♣"];
   const values = [2,3,4,5,6,7,8,9,10,"J","Q","K","A"];
@@ -82,10 +83,7 @@ function createDeck() {
 
   for (let s of suits) {
     for (let v of values) {
-      deck.push({
-        value: v,
-        suit: s
-      });
+      deck.push({ value: v, suit: s });
     }
   }
 
@@ -96,12 +94,10 @@ function draw() {
   return deck.pop();
 }
 
-/* ---------------- START HAND ---------------- */
+/* ---------------- START ---------------- */
 
 function startHand() {
-  if (players.length === 0) {
-    createPlayers();
-  }
+  if (players.length === 0) createPlayers();
 
   createDeck();
 
@@ -121,8 +117,6 @@ function startHand() {
   turnIndex = 0;
 
   log("New hand started.");
-  log("Your turn.");
-
   updateUI();
 }
 
@@ -133,133 +127,74 @@ function nextTurn() {
 
   let active = players.filter(p => !p.folded);
 
-  // only one player left
   if (active.length === 1) {
     active[0].money += pot;
-
     log(active[0].name + " wins (everyone folded).");
-
     pot = 0;
     handActive = false;
-
     updateUI();
     return;
   }
 
   turnIndex = (turnIndex + 1) % players.length;
 
-  // skip folded players
-  if (players[turnIndex].folded) {
-    nextTurn();
-    return;
-  }
+  if (players[turnIndex].folded) return nextTurn();
 
-  // player turn
   if (turnIndex === 0) {
     log("Your turn.");
     updateUI();
     return;
   }
 
-  // AI turn
   setTimeout(() => {
     aiTurn(players[turnIndex]);
-
     updateUI();
-
     checkRoundEnd();
-
-    if (handActive) {
-      nextTurn();
-    }
-  }, 500);
+    if (handActive) nextTurn();
+  }, 400);
 }
 
-/* ---------------- PLAYER ACTIONS ---------------- */
+/* ---------------- ACTIONS ---------------- */
 
 function playerAction(action) {
-  if (!handActive) return;
-
-  if (turnIndex !== 0) {
-    log("Not your turn.");
-    return;
-  }
+  if (!handActive || turnIndex !== 0) return;
 
   let p = players[0];
 
-  /* ---------- FOLD ---------- */
-
   if (action === "fold") {
     p.folded = true;
-    p.acted = true;
-
     log("You fold.");
   }
 
-  /* ---------- CALL ---------- */
-
   else if (action === "call") {
-    let diff = currentBet - p.bet;
-
-    if (diff < 0) diff = 0;
-    if (diff > p.money) diff = p.money;
-
+    let diff = Math.min(currentBet - p.bet, p.money);
     p.money -= diff;
     p.bet += diff;
     pot += diff;
-
-    p.acted = true;
-
-    if (diff === 0) {
-      log("You check.");
-    } else {
-      log("You call.");
-    }
+    log(diff ? "You call." : "You check.");
   }
 
-  /* ---------- RAISE ---------- */
-
   else if (action === "raise") {
-    let amount =
-      parseInt(document.getElementById("raiseAmount").value) || 0;
-
-    if (amount <= 0) {
-      log("Invalid raise.");
-      return;
-    }
+    let amount = parseInt(document.getElementById("raiseAmount").value) || 0;
 
     let newBet = currentBet + amount;
     let diff = newBet - p.bet;
 
-    if (diff > p.money) {
-      log("Not enough money.");
-      return;
-    }
+    if (diff > p.money) return log("Not enough money.");
 
     p.money -= diff;
     p.bet = newBet;
     currentBet = newBet;
     pot += diff;
 
-    p.acted = true;
-
-    // everyone else must respond again
-    for (let other of players) {
-      if (other !== p && !other.folded) {
-        other.acted = false;
-      }
-    }
+    for (let o of players) if (o !== p) o.acted = false;
 
     log("You raise to " + newBet);
   }
 
   updateUI();
-
   checkRoundEnd();
-
-  if (handActive) {
-    nextTurn();
-  }
+  nextTurn();
 }
 
 /* ---------------- AI ---------------- */
@@ -269,152 +204,71 @@ function aiTurn(p) {
 
   let r = Math.random();
 
-  /* ---------- FOLD ---------- */
-
   if (r < 0.2) {
     p.folded = true;
-    p.acted = true;
-
     log(p.name + " folds.");
     return;
   }
 
-  /* ---------- CALL / CHECK ---------- */
-
   if (r < 0.7) {
-    let diff = currentBet - p.bet;
+    let diff = Math.min(currentBet - p.bet, p.money);
 
-    if (diff > p.money) {
-      diff = p.money;
-    }
+    p.money -= diff;
+    p.bet += diff;
+    pot += diff;
 
-    if (diff > 0) {
-      p.money -= diff;
-      p.bet += diff;
-      pot += diff;
-
-      log(p.name + " calls.");
-    } else {
-      log(p.name + " checks.");
-    }
-
-    p.acted = true;
-
+    log(diff ? p.name + " calls." : p.name + " checks.");
     return;
   }
 
-  /* ---------- RAISE ---------- */
+  let raise = 20 + Math.floor(Math.random() * 80);
+  let newBet = currentBet + raise;
+  let diff = newBet - p.bet;
 
-  let minRaise = 20;
-  let maxRaise = 100;
-
-  let raiseSize =
-    Math.floor(Math.random() * (maxRaise - minRaise)) + minRaise;
-
-  let targetBet = currentBet + raiseSize;
-
-  let diff = targetBet - p.bet;
-
-  // can't afford raise
-  if (diff > p.money) {
-    diff = p.money;
-    targetBet = p.bet + diff;
-
-    // becomes call
-    if (targetBet <= currentBet) {
-      let callDiff = currentBet - p.bet;
-
-      if (callDiff > p.money) {
-        callDiff = p.money;
-      }
-
-      p.money -= callDiff;
-      p.bet += callDiff;
-      pot += callDiff;
-
-      p.acted = true;
-
-      log(p.name + " calls (low money).");
-      return;
-    }
-  }
+  if (diff > p.money) return;
 
   p.money -= diff;
-  p.bet += diff;
-
-  currentBet = p.bet;
-
+  p.bet = newBet;
+  currentBet = newBet;
   pot += diff;
 
-  p.acted = true;
-
-  // everyone else must respond again
-  for (let other of players) {
-    if (other !== p && !other.folded) {
-      other.acted = false;
-    }
-  }
+  for (let o of players) if (o !== p) o.acted = false;
 
   log(p.name + " raises to " + currentBet);
 }
 
-/* ---------------- ROUND SYSTEM ---------------- */
+/* ---------------- ROUND ---------------- */
+
 function checkRoundEnd() {
   let active = players.filter(p => !p.folded);
+  if (active.length <= 1) return;
 
-  if (active.length <= 1) {
-    return;
-  }
+  let done = active.every(p => p.bet === currentBet);
 
-  let allEqual =
-    active.every(p => p.bet === currentBet);
+  if (!done) return;
 
-  let allActed =
-    active.every(p => p.acted);
-
-  if (!allEqual || !allActed) {
-    return;
-  }
-
-  // reset bets + acted
   for (let p of players) {
     p.bet = 0;
     p.acted = false;
   }
 
   currentBet = 0;
-
   stage++;
 
-  /* ---------- NEXT ROUND STARTS ---------- */
-
-  // IMPORTANT FIX:
-  // make nextTurn() begin correctly
   turnIndex = -1;
-
-  /* ---------- FLOP ---------- */
 
   if (stage === 1) {
     community.push(draw(), draw(), draw());
-    log("Flop dealt.");
+    log("Flop.");
   }
-
-  /* ---------- TURN ---------- */
-
   else if (stage === 2) {
     community.push(draw());
-    log("Turn dealt.");
+    log("Turn.");
   }
-
-  /* ---------- RIVER ---------- */
-
   else if (stage === 3) {
     community.push(draw());
-    log("River dealt.");
+    log("River.");
   }
-
-  /* ---------- SHOWDOWN ---------- */
-
   else {
     showdown();
     handActive = false;
@@ -423,130 +277,171 @@ function checkRoundEnd() {
   updateUI();
 }
 
-/* ---------------- HAND EVALUATION ---------------- */
+/* ---------------- HAND EVALUATION (FIXED) ---------------- */
 
 function value(v) {
   if (v === "J") return 11;
   if (v === "Q") return 12;
   if (v === "K") return 13;
   if (v === "A") return 14;
-
   return v;
 }
 
-function evaluate(cards) {
-  let vals =
-    cards.map(c => value(c.value))
-         .sort((a, b) => b - a);
+function getCombinations(arr, k) {
+  let res = [];
+
+  function backtrack(start, combo) {
+    if (combo.length === k) {
+      res.push(combo);
+      return;
+    }
+    for (let i = start; i < arr.length; i++) {
+      backtrack(i + 1, combo.concat([arr[i]]));
+    }
+  }
+
+  backtrack(0, []);
+  return res;
+}
+
+/* ---- evaluate 5-card hand ---- */
+
+function evaluate5(hand) {
+  let vals = hand.map(c => value(c.value)).sort((a,b)=>b-a);
+  let suits = hand.map(c => c.suit);
 
   let counts = {};
+  vals.forEach(v => counts[v] = (counts[v] || 0) + 1);
 
-  vals.forEach(v => {
-    counts[v] = (counts[v] || 0) + 1;
-  });
+  let groups = Object.entries(counts)
+    .map(([v,c]) => ({v:+v,c}))
+    .sort((a,b)=>b.c - a.c || b.v - a.v);
 
-  let groups =
-    Object.entries(counts)
-      .map(([v, c]) => ({
-        v: parseInt(v),
-        c
-      }))
-      .sort((a, b) => b.c - a.c || b.v - a.v);
+  let isFlush = suits.every(s => s === suits[0]);
 
-  // four of a kind
-  if (groups[0].c === 4) return 7;
+  let unique = [...new Set(vals)].sort((a,b)=>a-b);
+  let isStraight = false;
+
+  for (let i=0;i<=unique.length-5;i++) {
+    let seq = unique.slice(i,i+5);
+    if (seq[4]-seq[0] === 4) isStraight = true;
+  }
+
+  // wheel straight
+  if ([14,5,4,3,2].every(v => vals.includes(v))) {
+    isStraight = true;
+    vals = [5];
+  }
+
+  // straight flush
+  if (isFlush && isStraight) return {rank:8, kick:vals};
+
+  // quads
+  if (groups[0].c === 4) return {rank:7, kick:[groups[0].v]};
 
   // full house
-  if (groups[0].c === 3 && groups[1]?.c === 2) return 6;
+  if (groups[0].c === 3 && groups[1]?.c === 2)
+    return {rank:6, kick:[groups[0].v,groups[1].v]};
 
-  // three of a kind
-  if (groups[0].c === 3) return 3;
+  // flush
+  if (isFlush) return {rank:5, kick:vals};
+
+  // straight
+  if (isStraight) return {rank:4, kick:vals};
+
+  // trips
+  if (groups[0].c === 3)
+    return {rank:3, kick:[groups[0].v,...vals.filter(v=>v!==groups[0].v)]};
 
   // two pair
-  if (groups[0].c === 2 && groups[1]?.c === 2) return 2;
+  if (groups[0].c === 2 && groups[1]?.c === 2)
+    return {rank:2, kick:[groups[0].v,groups[1].v]};
 
   // pair
-  if (groups[0].c === 2) return 1;
+  if (groups[0].c === 2)
+    return {rank:1, kick:[groups[0].v,...vals.filter(v=>v!==groups[0].v)]};
 
-  // high card
+  return {rank:0, kick:vals};
+}
+
+function compare(a,b){
+  if (a.rank !== b.rank) return a.rank - b.rank;
+
+  for (let i=0;i<Math.max(a.kick.length,b.kick.length);i++){
+    if ((a.kick[i]||0) !== (b.kick[i]||0))
+      return (a.kick[i]||0) - (b.kick[i]||0);
+  }
   return 0;
 }
 
-/* ---------------- SHOWDOWN ---------------- */
+function evaluateBest(cards){
+  let combos = getCombinations(cards,5);
+  let best = null;
+
+  for (let c of combos){
+    let val = evaluate5(c);
+    if (!best || compare(val,best)>0) best = val;
+  }
+
+  return best;
+}
+
+/* ---------------- SHOWDOWN FIXED ---------------- */
 
 function showdown() {
   log("Showdown!");
 
-  let best = -1;
+  let best = null;
   let winners = [];
 
   for (let p of players) {
     if (p.folded) continue;
 
-    let score =
-      evaluate([...p.hand, ...community]);
+    let score = evaluateBest([...p.hand, ...community]);
 
-    log(p.name + " score: " + score);
+    log(p.name + " rank " + score.rank);
 
-    if (score > best) {
+    if (!best || compare(score,best) > 0) {
       best = score;
       winners = [p];
     }
-
-    else if (score === best) {
+    else if (compare(score,best) === 0) {
       winners.push(p);
     }
   }
 
   let split = pot / winners.length;
 
-  for (let w of winners) {
-    w.money += split;
-  }
+  winners.forEach(w => w.money += split);
+
   localStorage.setItem("chips", players[0].money);
-  log(
-    "Winner(s): " +
-    winners.map(w => w.name).join(", ")
-  );
+
+  log("Winner(s): " + winners.map(w=>w.name).join(", "));
 
   pot = 0;
-
   updateUI();
 }
 
 /* ---------------- UI ---------------- */
 
 function updateUI() {
-  document.getElementById("pot").textContent =
-    pot;
-
-  document.getElementById("currentBet").textContent =
-    currentBet;
-
-  document.getElementById("money").textContent =
-    players[0]?.money || 0;
-
-  /* ---------- PLAYER CARDS ---------- */
+  document.getElementById("pot").textContent = pot;
+  document.getElementById("currentBet").textContent = currentBet;
+  document.getElementById("money").textContent = players[0]?.money || 0;
 
   document.getElementById("playerCards").innerHTML =
     players[0].hand.map(renderCard).join("");
 
-  /* ---------- COMMUNITY ---------- */
-
   document.getElementById("communityCards").innerHTML =
     community.map(renderCard).join("");
 
-  /* ---------- AI PLAYERS ---------- */
-
-  for (let i = 1; i <= 3; i++) {
-    let el = document.getElementById("p" + i);
-
-    el.innerHTML =
-      `<b>${players[i].name}</b><br>` +
-      `<div class="card-back"></div>` +
-      `<div class="card-back"></div><br>` +
-      `Money: $${players[i].money}<br>` +
-      `Bet: $${players[i].bet}`;
+  for (let i=1;i<=3;i++){
+    document.getElementById("p"+i).innerHTML =
+      `<b>${players[i].name}</b><br>
+       <div class="card-back"></div>
+       <div class="card-back"></div><br>
+       Money: $${players[i].money}<br>
+       Bet: $${players[i].bet}`;
   }
 }
 
