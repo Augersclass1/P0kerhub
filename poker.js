@@ -5,7 +5,7 @@ let community = [];
 let pot = 0;
 let currentBet = 0;
 
-let turnIndex = 0;
+let turnIndex = -1;   // IMPORTANT: start at -1 so runTurn advances correctly
 let handActive = false;
 let stage = 0;
 
@@ -97,15 +97,17 @@ function startHand() {
     p.folded = false;
   }
 
-  turnIndex = 0;
+  turnIndex = -1;
 
   log("New hand started.");
   updateUI();
+
+  runTurn();
 }
 
-/* ---------------- TURN SYSTEM (FIXED CORE) ---------------- */
+/* ---------------- MAIN TURN ENGINE ---------------- */
 
-function nextTurn() {
+function runTurn() {
   if (!handActive) return;
 
   let active = players.filter(p => !p.folded);
@@ -120,28 +122,29 @@ function nextTurn() {
     return;
   }
 
-  /* ALWAYS ADVANCE FIRST (CRITICAL FIX) */
+  // advance turn safely
   do {
     turnIndex = (turnIndex + 1) % players.length;
   } while (players[turnIndex].folded);
 
   updateUI();
 
-  /* PLAYER TURN */
+  // PLAYER TURN
   if (turnIndex === 0) {
     log("Your turn.");
     return;
   }
 
-  /* AI TURN */
+  // AI TURN
   setTimeout(() => {
     aiTurn(players[turnIndex]);
 
     updateUI();
-    checkRoundEnd();
 
-    if (handActive) {
-      nextTurn();
+    if (checkRoundEnd()) {
+      setTimeout(runTurn, 300);
+    } else {
+      runTurn();
     }
   }, 400);
 }
@@ -184,12 +187,12 @@ function playerAction(action) {
   }
 
   updateUI();
-  checkRoundEnd();
 
-  /* CRITICAL FIX: always advance turn AFTER action */
-  setTimeout(() => {
-    nextTurn();
-  }, 0);
+  if (checkRoundEnd()) {
+    setTimeout(runTurn, 300);
+  } else {
+    setTimeout(runTurn, 0);
+  }
 }
 
 /* ---------------- AI ---------------- */
@@ -233,10 +236,11 @@ function aiTurn(p) {
 
 function checkRoundEnd() {
   let active = players.filter(p => !p.folded);
-  if (active.length <= 1) return;
+
+  if (active.length <= 1) return true;
 
   let done = active.every(p => p.bet === currentBet);
-  if (!done) return;
+  if (!done) return false;
 
   for (let p of players) {
     p.bet = 0;
@@ -245,23 +249,21 @@ function checkRoundEnd() {
   currentBet = 0;
   stage++;
 
-  /* SAFE RESET (NOT -1) */
-  turnIndex = 0;
+  turnIndex = -1;
 
   if (stage === 1) {
     community.push(draw(), draw(), draw());
     log("Flop.");
   }
-
   else if (stage === 2) {
     community.push(draw());
     log("Turn.");
   }
-
   else if (stage === 3) {
     community.push(draw());
     log("River.");
   }
 
   updateUI();
+  return true;
 }
