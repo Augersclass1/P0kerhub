@@ -10,15 +10,13 @@ let handActive = false;
 let stage = 0;
 
 /* ---------------- UTIL ---------------- */
+
 const originalTitle = document.title;
 
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    document.title = "google";
-  } else {
-    document.title = "poker";
-  }
+  document.title = document.hidden ? "google" : "poker";
 });
+
 function panicmode() {
   window.location.href = "https://google.com";
 }
@@ -93,7 +91,7 @@ function draw() {
   return deck.pop();
 }
 
-/* ---------------- START ---------------- */
+/* ---------------- START HAND ---------------- */
 
 function startHand() {
   if (players.length === 0) createPlayers();
@@ -118,7 +116,7 @@ function startHand() {
   updateUI();
 }
 
-/* ---------------- TURN SYSTEM (FIXED) ---------------- */
+/* ---------------- TURN SYSTEM (FIXED CORE) ---------------- */
 
 function nextTurn() {
   if (!handActive) return;
@@ -128,13 +126,14 @@ function nextTurn() {
   if (active.length === 1) {
     active[0].money += pot;
     log(active[0].name + " wins (everyone folded).");
+
     pot = 0;
     handActive = false;
     updateUI();
     return;
   }
 
-  // ADVANCE TURN SAFELY (NO RECURSION)
+  // advance to next active player
   do {
     turnIndex = (turnIndex + 1) % players.length;
   } while (players[turnIndex].folded);
@@ -153,7 +152,9 @@ function nextTurn() {
     updateUI();
     checkRoundEnd();
 
-    if (handActive) nextTurn();
+    if (handActive) {
+      setTimeout(nextTurn, 0);
+    }
   }, 400);
 }
 
@@ -174,6 +175,7 @@ function playerAction(action) {
     p.money -= diff;
     p.bet += diff;
     pot += diff;
+
     log(diff ? "You call." : "You check.");
   }
 
@@ -196,8 +198,8 @@ function playerAction(action) {
   updateUI();
   checkRoundEnd();
 
-  // ONLY advance turn here (safe now)
-  nextTurn();
+  // IMPORTANT: only ONE turn advance trigger
+  setTimeout(nextTurn, 0);
 }
 
 /* ---------------- AI ---------------- */
@@ -244,9 +246,9 @@ function checkRoundEnd() {
   if (active.length <= 1) return;
 
   let done = active.every(p => p.bet === currentBet);
-
   if (!done) return;
 
+  // reset bets
   for (let p of players) {
     p.bet = 0;
   }
@@ -254,86 +256,23 @@ function checkRoundEnd() {
   currentBet = 0;
   stage++;
 
-  turnIndex = -1;
+  // FIXED TURN RESET (NO -1 BUG)
+  turnIndex = 0;
 
   if (stage === 1) {
     community.push(draw(), draw(), draw());
     log("Flop.");
   }
+
   else if (stage === 2) {
     community.push(draw());
     log("Turn.");
   }
+
   else if (stage === 3) {
     community.push(draw());
     log("River.");
   }
-  else {
-    showdown();
-    handActive = false;
-  }
 
   updateUI();
 }
-
-/* ---------------- SHOWDOWN ---------------- */
-
-function showdown() {
-  log("Showdown!");
-
-  let best = null;
-  let winners = [];
-
-  for (let p of players) {
-    if (p.folded) continue;
-
-    let score = evaluateBest([...p.hand, ...community]);
-
-    if (!best || compare(score, best) > 0) {
-      best = score;
-      winners = [p];
-    }
-    else if (compare(score, best) === 0) {
-      winners.push(p);
-    }
-  }
-
-  let split = pot / winners.length;
-
-  winners.forEach(w => w.money += split);
-
-  localStorage.setItem("chips", players[0].money);
-
-  log("Winner(s): " + winners.map(w => w.name).join(", "));
-
-  pot = 0;
-  updateUI();
-}
-
-/* ---------------- UI ---------------- */
-
-function updateUI() {
-  document.getElementById("pot").textContent = pot;
-  document.getElementById("currentBet").textContent = currentBet;
-  document.getElementById("money").textContent = players[0]?.money || 0;
-
-  document.getElementById("playerCards").innerHTML =
-    players[0].hand.map(renderCard).join("");
-
-  document.getElementById("communityCards").innerHTML =
-    community.map(renderCard).join("");
-
-  for (let i = 1; i <= 3; i++) {
-    document.getElementById("p" + i).innerHTML =
-      `<b>${players[i].name}</b><br>
-       <div class="card-back"></div>
-       <div class="card-back"></div><br>
-       Money: $${players[i].money}<br>
-       Bet: $${players[i].bet}`;
-  }
-}
-
-/* ---------------- INIT ---------------- */
-
-createPlayers();
-updateUI();
