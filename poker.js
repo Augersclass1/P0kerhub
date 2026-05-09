@@ -436,8 +436,10 @@ function value(v) {
 
 function evaluate(cards) {
   let vals =
-    cards.map(c => value(c.value))
-         .sort((a, b) => b - a);
+    cards.map(c => value(c.value));
+
+  let sortedDesc =
+    [...vals].sort((a, b) => b - a);
 
   let counts = {};
 
@@ -453,47 +455,267 @@ function evaluate(cards) {
       }))
       .sort((a, b) => b.c - a.c || b.v - a.v);
 
-  // four of a kind
-  if (groups[0].c === 4) return 7;
+  /* ---------- FLUSH ---------- */
 
-  // full house
-  if (groups[0].c === 3 && groups[1]?.c === 2) return 6;
+  let suitGroups = {};
 
-  // three of a kind
-  if (groups[0].c === 3) return 3;
+  for (let c of cards) {
+    if (!suitGroups[c.suit]) {
+      suitGroups[c.suit] = [];
+    }
 
-  // two pair
-  if (groups[0].c === 2 && groups[1]?.c === 2) return 2;
+    suitGroups[c.suit].push(value(c.value));
+  }
 
-  // pair
-  if (groups[0].c === 2) return 1;
+  let flushSuit = null;
 
-  // high card
-  return 0;
+  for (let s in suitGroups) {
+    if (suitGroups[s].length >= 5) {
+      flushSuit = s;
+      break;
+    }
+  }
+
+  let flushCards = [];
+
+  if (flushSuit) {
+    flushCards =
+      suitGroups[flushSuit]
+        .sort((a, b) => b - a);
+  }
+
+  /* ---------- STRAIGHT ---------- */
+
+  function findStraight(arr) {
+    let unique =
+      [...new Set(arr)]
+        .sort((a, b) => a - b);
+
+    if (unique.includes(14)) {
+      unique.unshift(1);
+    }
+
+    let streak = 1;
+    let high = 0;
+
+    for (let i = 1; i < unique.length; i++) {
+      if (unique[i] === unique[i - 1] + 1) {
+        streak++;
+
+        if (streak >= 5) {
+          high = unique[i];
+        }
+      } else {
+        streak = 1;
+      }
+    }
+
+    return high;
+  }
+
+  let straightHigh =
+    findStraight(vals);
+
+  /* ---------- STRAIGHT FLUSH ---------- */
+
+  let straightFlushHigh = 0;
+
+  if (flushCards.length >= 5) {
+    straightFlushHigh =
+      findStraight(flushCards);
+  }
+
+  /* ---------- ROYAL FLUSH ---------- */
+
+  if (straightFlushHigh === 14) {
+    return {
+      rank: 10,
+      tiebreak: [14],
+      name: "Royal Flush"
+    };
+  }
+
+  /* ---------- STRAIGHT FLUSH ---------- */
+
+  if (straightFlushHigh > 0) {
+    return {
+      rank: 9,
+      tiebreak: [straightFlushHigh],
+      name: "Straight Flush"
+    };
+  }
+
+  /* ---------- FOUR KIND ---------- */
+
+  if (groups[0].c === 4) {
+    let kicker =
+      groups.find(g => g.c === 1).v;
+
+    return {
+      rank: 8,
+      tiebreak: [groups[0].v, kicker],
+      name: "Four of a Kind"
+    };
+  }
+
+  /* ---------- FULL HOUSE ---------- */
+
+  if (
+    groups[0].c === 3 &&
+    (groups[1]?.c === 2 ||
+     groups[1]?.c === 3)
+  ) {
+    return {
+      rank: 7,
+      tiebreak: [
+        groups[0].v,
+        groups[1].v
+      ],
+      name: "Full House"
+    };
+  }
+
+  /* ---------- FLUSH ---------- */
+
+  if (flushCards.length >= 5) {
+    return {
+      rank: 6,
+      tiebreak: flushCards.slice(0, 5),
+      name: "Flush"
+    };
+  }
+
+  /* ---------- STRAIGHT ---------- */
+
+  if (straightHigh > 0) {
+    return {
+      rank: 5,
+      tiebreak: [straightHigh],
+      name: "Straight"
+    };
+  }
+
+  /* ---------- THREE KIND ---------- */
+
+  if (groups[0].c === 3) {
+    let kickers =
+      groups
+        .filter(g => g.c === 1)
+        .map(g => g.v)
+        .sort((a, b) => b - a)
+        .slice(0, 2);
+
+    return {
+      rank: 4,
+      tiebreak: [
+        groups[0].v,
+        ...kickers
+      ],
+      name: "Three of a Kind"
+    };
+  }
+
+  /* ---------- TWO PAIR ---------- */
+
+  if (
+    groups[0].c === 2 &&
+    groups[1]?.c === 2
+  ) {
+    let kicker =
+      groups
+        .filter(g => g.c === 1)
+        .map(g => g.v)
+        .sort((a, b) => b - a)[0];
+
+    return {
+      rank: 3,
+      tiebreak: [
+        groups[0].v,
+        groups[1].v,
+        kicker
+      ],
+      name: "Two Pair"
+    };
+  }
+
+  /* ---------- PAIR ---------- */
+
+  if (groups[0].c === 2) {
+    let kickers =
+      groups
+        .filter(g => g.c === 1)
+        .map(g => g.v)
+        .sort((a, b) => b - a)
+        .slice(0, 3);
+
+    return {
+      rank: 2,
+      tiebreak: [
+        groups[0].v,
+        ...kickers
+      ],
+      name: "Pair"
+    };
+  }
+
+  /* ---------- HIGH CARD ---------- */
+
+  return {
+    rank: 1,
+    tiebreak: sortedDesc.slice(0, 5),
+    name: "High Card"
+  };
 }
-
 /* ---------------- SHOWDOWN ---------------- */
 
 function showdown() {
   log("Showdown!");
 
-  let best = -1;
+  let bestHand = null;
   let winners = [];
+
+  function compareHands(a, b) {
+    // compare rank first
+    if (a.rank !== b.rank) {
+      return a.rank - b.rank;
+    }
+
+    // compare tiebreakers
+    for (let i = 0; i < Math.max(a.tiebreak.length, b.tiebreak.length); i++) {
+      let av = a.tiebreak[i] || 0;
+      let bv = b.tiebreak[i] || 0;
+
+      if (av !== bv) {
+        return av - bv;
+      }
+    }
+
+    return 0;
+  }
 
   for (let p of players) {
     if (p.folded) continue;
 
-    let score =
+    let hand =
       evaluate([...p.hand, ...community]);
 
-    log(p.name + " score: " + score);
+    log(
+      p.name +
+      ": " +
+      hand.name
+    );
 
-    if (score > best) {
-      best = score;
+    if (
+      bestHand === null ||
+      compareHands(hand, bestHand) > 0
+    ) {
+      bestHand = hand;
       winners = [p];
     }
 
-    else if (score === best) {
+    else if (
+      compareHands(hand, bestHand) === 0
+    ) {
       winners.push(p);
     }
   }
@@ -503,7 +725,12 @@ function showdown() {
   for (let w of winners) {
     w.money += split;
   }
-  localStorage.setItem("chips", players[0].money);
+
+  localStorage.setItem(
+    "chips",
+    players[0].money
+  );
+
   log(
     "Winner(s): " +
     winners.map(w => w.name).join(", ")
@@ -513,7 +740,6 @@ function showdown() {
 
   updateUI();
 }
-
 /* ---------------- UI ---------------- */
 
 function updateUI() {
