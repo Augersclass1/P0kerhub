@@ -7,30 +7,21 @@ let currentBet = 0;
 
 let turnIndex = 0;
 let handActive = false;
-let stage = 0;
-
-/* ---------------- UTIL ---------------- */
-const originalTitle = document.title;
-const originalTitle = document.title;
-
-document.addEventListener("visibilitychange", () => {
-  document.title = document.hidden
-    ? "google"
-    : "poker-4.5";
-});
+let stage = 0; // 0 preflop, 1 flop, 2 turn, 3 river
 
 function panicmode() {
-  window.location.href = "https://google.com";
+    window.location.href = "https://google.com";
 }
-
 function getChips() {
-  let chips = localStorage.getItem("chips");
+    let chips = localStorage.getItem("chips");
 
-  if (chips === null) {
-    return 1000;
-  }
-
-  return Number(chips);
+    if (chips === null) {
+        alert("no chips found")
+        return 1000;
+    } else {
+        alert("loaded chips");
+        return Number(chips);
+    }
 }
 
 /* ---------------- LOG ---------------- */
@@ -57,7 +48,7 @@ function renderCard(c) {
   `;
 }
 
-/* ---------------- PLAYERS ---------------- */
+/* ---------------- SETUP ---------------- */
 
 function createPlayers() {
   players = [];
@@ -82,8 +73,6 @@ function createPlayers() {
     });
   }
 }
-
-/* ---------------- DECK ---------------- */
 
 function createDeck() {
   const suits = ["♠", "♥", "♦", "♣"];
@@ -209,7 +198,7 @@ function playerAction(action) {
 
   /* ---------- CALL ---------- */
 
-  else if (action === "call" || action === "check") {
+  else if (action === "call") {
     let diff = currentBet - p.bet;
 
     if (diff < 0) diff = 0;
@@ -254,7 +243,7 @@ function playerAction(action) {
 
     p.acted = true;
 
-    // everyone else must act again
+    // everyone else must respond again
     for (let other of players) {
       if (other !== p && !other.folded) {
         other.acted = false;
@@ -299,25 +288,28 @@ function aiTurn(p) {
       diff = p.money;
     }
 
-    p.money -= diff;
-    p.bet += diff;
-    pot += diff;
-
-    p.acted = true;
-
     if (diff > 0) {
+      p.money -= diff;
+      p.bet += diff;
+      pot += diff;
+
       log(p.name + " calls.");
     } else {
       log(p.name + " checks.");
     }
+
+    p.acted = true;
 
     return;
   }
 
   /* ---------- RAISE ---------- */
 
+  let minRaise = 20;
+  let maxRaise = 100;
+
   let raiseSize =
-    Math.floor(Math.random() * 81) + 20;
+    Math.floor(Math.random() * (maxRaise - minRaise)) + minRaise;
 
   let targetBet = currentBet + raiseSize;
 
@@ -356,7 +348,7 @@ function aiTurn(p) {
 
   p.acted = true;
 
-  // everyone else must act again
+  // everyone else must respond again
   for (let other of players) {
     if (other !== p && !other.folded) {
       other.acted = false;
@@ -367,7 +359,6 @@ function aiTurn(p) {
 }
 
 /* ---------------- ROUND SYSTEM ---------------- */
-
 function checkRoundEnd() {
   let active = players.filter(p => !p.folded);
 
@@ -385,7 +376,7 @@ function checkRoundEnd() {
     return;
   }
 
-  // reset round
+  // reset bets + acted
   for (let p of players) {
     p.bet = 0;
     p.acted = false;
@@ -395,7 +386,10 @@ function checkRoundEnd() {
 
   stage++;
 
-  // IMPORTANT
+  /* ---------- NEXT ROUND STARTS ---------- */
+
+  // IMPORTANT FIX:
+  // make nextTurn() begin correctly
   turnIndex = -1;
 
   /* ---------- FLOP ---------- */
@@ -440,34 +434,10 @@ function value(v) {
   return v;
 }
 
-function getCombinations(arr, k) {
-  let result = [];
-
-  function helper(start, combo) {
-    if (combo.length === k) {
-      result.push(combo);
-      return;
-    }
-
-    for (let i = start; i < arr.length; i++) {
-      helper(i + 1, combo.concat([arr[i]]));
-    }
-  }
-
-  helper(0, []);
-
-  return result;
-}
-
-/* ---------- EVALUATE 5 CARDS ---------- */
-
-function evaluate5(cards) {
+function evaluate(cards) {
   let vals =
-    cards
-      .map(c => value(c.value))
-      .sort((a, b) => b - a);
-
-  let suits = cards.map(c => c.suit);
+    cards.map(c => value(c.value))
+         .sort((a, b) => b - a);
 
   let counts = {};
 
@@ -483,180 +453,23 @@ function evaluate5(cards) {
       }))
       .sort((a, b) => b.c - a.c || b.v - a.v);
 
-  /* ---------- FLUSH ---------- */
+  // four of a kind
+  if (groups[0].c === 4) return 7;
 
-  let isFlush =
-    suits.every(s => s === suits[0]);
+  // full house
+  if (groups[0].c === 3 && groups[1]?.c === 2) return 6;
 
-  /* ---------- STRAIGHT ---------- */
+  // three of a kind
+  if (groups[0].c === 3) return 3;
 
-  let unique =
-    [...new Set(vals)].sort((a, b) => a - b);
+  // two pair
+  if (groups[0].c === 2 && groups[1]?.c === 2) return 2;
 
-  let isStraight = false;
-  let straightHigh = 0;
+  // pair
+  if (groups[0].c === 2) return 1;
 
-  // normal straight
-  for (let i = 0; i <= unique.length - 5; i++) {
-    let seq = unique.slice(i, i + 5);
-
-    if (seq[4] - seq[0] === 4) {
-      isStraight = true;
-      straightHigh = seq[4];
-    }
-  }
-
-  // wheel straight A2345
-  if (
-    unique.includes(14) &&
-    unique.includes(2) &&
-    unique.includes(3) &&
-    unique.includes(4) &&
-    unique.includes(5)
-  ) {
-    isStraight = true;
-    straightHigh = 5;
-  }
-
-  /* ---------- STRAIGHT FLUSH ---------- */
-
-  if (isStraight && isFlush) {
-    return {
-      rank: 8,
-      kick: [straightHigh]
-    };
-  }
-
-  /* ---------- FOUR KIND ---------- */
-
-  if (groups[0].c === 4) {
-    return {
-      rank: 7,
-      kick: [groups[0].v]
-    };
-  }
-
-  /* ---------- FULL HOUSE ---------- */
-
-  if (groups[0].c === 3 && groups[1]?.c === 2) {
-    return {
-      rank: 6,
-      kick: [groups[0].v, groups[1].v]
-    };
-  }
-
-  /* ---------- FLUSH ---------- */
-
-  if (isFlush) {
-    return {
-      rank: 5,
-      kick: vals
-    };
-  }
-
-  /* ---------- STRAIGHT ---------- */
-
-  if (isStraight) {
-    return {
-      rank: 4,
-      kick: [straightHigh]
-    };
-  }
-
-  /* ---------- THREE KIND ---------- */
-
-  if (groups[0].c === 3) {
-    return {
-      rank: 3,
-      kick: [
-        groups[0].v,
-        ...vals.filter(v => v !== groups[0].v)
-      ]
-    };
-  }
-
-  /* ---------- TWO PAIR ---------- */
-
-  if (groups[0].c === 2 && groups[1]?.c === 2) {
-    let kicker =
-      vals.find(
-        v =>
-          v !== groups[0].v &&
-          v !== groups[1].v
-      );
-
-    return {
-      rank: 2,
-      kick: [
-        groups[0].v,
-        groups[1].v,
-        kicker
-      ]
-    };
-  }
-
-  /* ---------- ONE PAIR ---------- */
-
-  if (groups[0].c === 2) {
-    return {
-      rank: 1,
-      kick: [
-        groups[0].v,
-        ...vals.filter(v => v !== groups[0].v)
-      ]
-    };
-  }
-
-  /* ---------- HIGH CARD ---------- */
-
-  return {
-    rank: 0,
-    kick: vals
-  };
-}
-
-/* ---------- COMPARE ---------- */
-
-function compareHands(a, b) {
-  if (a.rank !== b.rank) {
-    return a.rank - b.rank;
-  }
-
-  for (
-    let i = 0;
-    i < Math.max(a.kick.length, b.kick.length);
-    i++
-  ) {
-    let av = a.kick[i] || 0;
-    let bv = b.kick[i] || 0;
-
-    if (av !== bv) {
-      return av - bv;
-    }
-  }
-
+  // high card
   return 0;
-}
-
-/* ---------- BEST OF 7 ---------- */
-
-function evaluateBest(cards) {
-  let combos = getCombinations(cards, 5);
-
-  let best = null;
-
-  for (let combo of combos) {
-    let score = evaluate5(combo);
-
-    if (
-      best === null ||
-      compareHands(score, best) > 0
-    ) {
-      best = score;
-    }
-  }
-
-  return best;
 }
 
 /* ---------------- SHOWDOWN ---------------- */
@@ -664,35 +477,23 @@ function evaluateBest(cards) {
 function showdown() {
   log("Showdown!");
 
-  let bestScore = null;
+  let best = -1;
   let winners = [];
 
   for (let p of players) {
     if (p.folded) continue;
 
-    let result =
-      evaluateBest([...p.hand, ...community]);
+    let score =
+      evaluate([...p.hand, ...community]);
 
-    log(
-      p.name +
-      " -> Rank " +
-      result.rank +
-      " (" +
-      result.kick.join(",") +
-      ")"
-    );
+    log(p.name + " score: " + score);
 
-    if (
-      bestScore === null ||
-      compareHands(result, bestScore) > 0
-    ) {
-      bestScore = result;
+    if (score > best) {
+      best = score;
       winners = [p];
     }
 
-    else if (
-      compareHands(result, bestScore) === 0
-    ) {
+    else if (score === best) {
       winners.push(p);
     }
   }
@@ -702,12 +503,7 @@ function showdown() {
   for (let w of winners) {
     w.money += split;
   }
-
-  localStorage.setItem(
-    "chips",
-    players[0].money
-  );
-
+  localStorage.setItem("chips", players[0].money);
   log(
     "Winner(s): " +
     winners.map(w => w.name).join(", ")
@@ -730,7 +526,7 @@ function updateUI() {
   document.getElementById("money").textContent =
     players[0]?.money || 0;
 
-  /* ---------- PLAYER ---------- */
+  /* ---------- PLAYER CARDS ---------- */
 
   document.getElementById("playerCards").innerHTML =
     players[0].hand.map(renderCard).join("");
@@ -740,7 +536,7 @@ function updateUI() {
   document.getElementById("communityCards").innerHTML =
     community.map(renderCard).join("");
 
-  /* ---------- AI ---------- */
+  /* ---------- AI PLAYERS ---------- */
 
   for (let i = 1; i <= 3; i++) {
     let el = document.getElementById("p" + i);
