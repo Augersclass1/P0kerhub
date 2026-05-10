@@ -8,6 +8,15 @@ let currentBet = 0;
 let turnIndex = 0;
 let handActive = false;
 let stage = 0; // 0 preflop, 1 flop, 2 turn, 3 river
+
+const originalTitle = document.title;
+
+document.addEventListener("visibilitychange", () => {
+  document.title = document.hidden
+    ? "google"
+    : originalTitle;
+});
+
 function resetchips() {
     players[0].money = 1000;
     localStorage.setItem(
