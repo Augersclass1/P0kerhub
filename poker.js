@@ -10,6 +10,11 @@ let handActive = false;
 let stage = 0; // 0 preflop, 1 flop, 2 turn, 3 river
 function resetchips() {
     players[0].money = 1000;
+    localStorage.setItem(
+    "chips",
+    players[0].money
+  );
+  updateUI()
 }
 function panicmode() {
     window.location.href = "https://google.com";
