@@ -30,7 +30,57 @@ function getChips() {
         return Number(chips);
     }
 }
+/* ---------------- DEV CONSOLE ---------------- */
 
+function developerConsole() {
+  let pass = prompt("Enter developer passcode:");
+
+  if (pass !== "iC0d3:121012") {
+    alert("Incorrect passcode.");
+    return;
+  }
+
+  let command = prompt(
+    "Developer Commands:\n\n" +
+    "setchips <amount>\n\n" +
+    "Example:\nsetchips 5000"
+  );
+
+  if (!command) return;
+
+  let parts = command.split(" ");
+
+  let cmd = parts[0].toLowerCase();
+
+  /* ---------- SET CHIPS ---------- */
+
+  if (cmd === "setchips") {
+    let amount = parseInt(parts[1]);
+
+    if (isNaN(amount) || amount < 0) {
+      alert("Invalid chip amount.");
+      return;
+    }
+
+    players[0].money = amount;
+
+    localStorage.setItem(
+      "chips",
+      amount
+    );
+
+    log("Developer set chips to $" + amount);
+
+    updateUI();
+
+    alert("Chips updated.");
+    return;
+  }
+
+  /* ---------- UNKNOWN COMMAND ---------- */
+
+  alert("Unknown command.");
+}
 /* ---------------- LOG ---------------- */
 
 function log(msg) {
