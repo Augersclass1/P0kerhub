@@ -6,13 +6,29 @@ const values = [
 ];
 
 let deck = [];
+function getChips() {
+    let chips = localStorage.getItem("chips");
 
+    if (chips === null) {
+        alert("no chips found")
+        return 1000;
+    } else {
+        alert("loaded chips");
+        return Number(chips);
+    }
+}
 let player = {
   hand: [],
-  money: 1000,
+  money: getChips(),
   bet: 0
 };
-
+function resetChips() {
+  player.money=1000
+  localStorage.setItem(
+    "chips",
+    players.money
+  );
+}
 let aiPlayers = [
   { name: "AI 1", hand: [] },
   { name: "AI 2", hand: [] }
@@ -438,7 +454,10 @@ function endGame(text) {
     player.money -= player.bet;
 
   }
-
+  localStorage.setItem(
+    "chips",
+    players.money
+  );
   updateMoneyDisplay();
 
   messageEl.textContent = text;
