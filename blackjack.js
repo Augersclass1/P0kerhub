@@ -22,6 +22,7 @@ let player = {
   money: getChips(),
   bet: 0
 };
+player.money=getChips()
 function resetChips() {
   player.money=1000
   localStorage.setItem(
@@ -414,7 +415,10 @@ function renderHands(showDealer = false) {
 // ---------- MONEY ----------
 
 function updateMoneyDisplay() {
-
+  localStorage.setItem(
+    "chips",
+    players.money
+  );
   moneyDisplay.innerHTML = `
     Money: $${player.money}<br>
     Bet: $${player.bet}
@@ -461,7 +465,10 @@ function endGame(text) {
   updateMoneyDisplay();
 
   messageEl.textContent = text;
-
+  localStorage.setItem(
+    "chips",
+    players.money
+  );
 }
 
 
@@ -597,3 +604,4 @@ updateMoneyDisplay();
 
 messageEl.textContent =
   "Place a bet to begin.";
+player.money=getChips()
