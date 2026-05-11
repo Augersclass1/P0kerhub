@@ -419,7 +419,7 @@ function endGame(text) {
     (ds > 21 || ps > ds)
   ) {
 
-    player.money += player.bet;
+    player.money += player.bet*2;
 
   } else if (
     ps > 21 || ds > ps
