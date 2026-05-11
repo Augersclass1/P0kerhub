@@ -24,6 +24,16 @@ let gameOver = true;
 
 let aiVisible = true;
 
+//title change
+
+const originalTitle = document.title;
+
+document.addEventListener("visibilitychange", () => {
+  document.title = document.hidden
+    ? "google"
+    : originalTitle;
+});
+
 
 // ---------- ELEMENTS ----------
 
