@@ -415,10 +415,6 @@ function renderHands(showDealer = false) {
 // ---------- MONEY ----------
 
 function updateMoneyDisplay() {
-  localStorage.setItem(
-    "chips",
-    players.money
-  );
   moneyDisplay.innerHTML = `
     Money: $${player.money}<br>
     Bet: $${player.bet}
@@ -475,7 +471,7 @@ function endGame(text) {
 // ---------- START GAME ----------
 
 function startGame() {
-
+  localStorage.setItem("chips",players.money);
   if (gameOver === false) {
 
     messageEl.textContent =
