@@ -471,7 +471,10 @@ function endGame(text) {
 // ---------- START GAME ----------
 
 function startGame() {
-  localStorage.setItem("chips",players.money);
+  localStorage.setItem(
+    "chips",
+    players.money
+  );
   if (gameOver === false) {
 
     messageEl.textContent =
