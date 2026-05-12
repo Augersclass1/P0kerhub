@@ -27,7 +27,7 @@ function resetChips() {
   player.money=1000
   localStorage.setItem(
     "chips",
-    players.money
+    player.money
   );
 }
 let aiPlayers = [
@@ -456,7 +456,7 @@ function endGame(text) {
   }
   localStorage.setItem(
     "chips",
-    players.money
+    player.money
   );
   updateMoneyDisplay();
 
@@ -473,7 +473,7 @@ function endGame(text) {
 function startGame() {
   localStorage.setItem(
     "chips",
-    players.money
+    player.money
   );
   if (gameOver === false) {
 
